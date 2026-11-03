@@ -15,8 +15,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_01_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-1_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_02_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-39_passando-15803d?style=flat-square)
 
 </div>
 
@@ -270,7 +270,7 @@ stateDiagram-v2
 
 | Semana | Dias | Tema | Release | Progresso |
 |---|---|---|:---:|---|
-| 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪⬜⬜⬜⬜ |
+| 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪⬜⬜⬜ |
 | 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | ⬜⬜⬜⬜⬜ |
 | 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
@@ -318,8 +318,8 @@ Resposta esperada: `{"status":"UP"}`
 
 | Tipo | Ferramentas | Situação |
 |---|---|---|
-| Contexto da aplicação | `@SpringBootTest` | 🟡 1 teste (contexto carrega) |
-| Domínio puro | JUnit + AssertJ, sem Spring | ⏳ Dia 02 |
+| Contexto da aplicação | `@SpringBootTest` | ✅ 1 teste (contexto carrega) |
+| Domínio puro | JUnit + AssertJ, sem Spring | ✅ 38 testes (Task, Project, TaskStatus) |
 | Controllers | `@WebMvcTest` + MockMvc | ⏳ Dia 08 |
 | Repositórios | `@DataJpaTest` | ⏳ Dia 08 |
 | Segurança | testes `401` × `403` | ⏳ Dia 13 |
@@ -339,7 +339,7 @@ moirai-taskflow/
 │   └── assets/                              # ✅ banner e imagens
 ├── src/main/java/dev/gustavo/moirai/
 │   ├── MoiraiApplication.java               # ✅ ponto de entrada
-│   ├── domain/                              # ⏳ Dia 02 — Project, Task, TaskStatus
+│   ├── domain/                              # ✅ Project, Task, TaskStatus, ids e exceções
 │   ├── application/
 │   │   ├── port/in/                         # ⏳ Dia 04 — casos de uso
 │   │   ├── port/out/                        # ⏳ Dia 03 — repositórios
@@ -363,7 +363,7 @@ moirai-taskflow/
 Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 
 **Projeto**
-- [ ] Domínio puro com máquina de estados e testes (Dia 02)
+- [x] Domínio puro com máquina de estados e testes (Dia 02)
 - [ ] JPA, Flyway, SQLite e adapter de persistência (Dia 03)
 - [ ] CRUD de projetos e tarefas, ProblemDetail (Dias 04–05) → `v0.1.0`
 - [ ] Paginação, filtros, OpenAPI e testes de camada (Dias 06–08)
