@@ -9,9 +9,9 @@
 - [x] ADR 0001 — Arquitetura Hexagonal · ADR 0002 — SQLite em dev (dialeto `hibernate-community-dialects`)
 
 ### Dia 02 — Domínio puro
-- [ ] `Project`, `Task`, `TaskStatus` com **máquina de estados** (transições válidas)
-- [ ] Regras: prazo, prioridade, quem pode mover a tarefa
-- [ ] Testes unitários sem Spring (rápidos)
+- [x] `Project`, `Task`, `TaskStatus` com **máquina de estados** (transições válidas)
+- [x] Regras: prazo, prioridade, quem pode mover a tarefa
+- [x] Testes unitários sem Spring (rápidos)
 
 ### Dia 03 — Persistência
 - [ ] Dependências: Data JPA, Flyway, `sqlite-jdbc`, `hibernate-community-dialects`
