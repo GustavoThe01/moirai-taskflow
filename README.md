@@ -28,9 +28,9 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
   <tr>
     <td width="62%">
 
-**Moirai** é o quarto projeto do meu portfólio público de Desenvolvedor Pleno, idealizado e mantido por **Gustavo Osterno Thé**.
+Eu sou o **Gustavo Osterno Thé**, e a **Moirai** é um dos cinco projetos do meu portfólio público de Desenvolvedor Pleno. Idealizei, desenvolvo e mantenho este repositório.
 
-Depois de construir tudo à mão no [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory), aqui o desafio é outro: **usar o Spring sem deixar o Spring tomar conta do domínio**. A API é construída em 4 semanas, até ficar pronta para produção, com segurança, Docker e observabilidade.
+No [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory) eu construo tudo à mão; aqui o desafio é outro: **usar o Spring sem deixar o Spring tomar conta do domínio**. Planejei a API para ficar pronta para produção em 4 semanas, com segurança, Docker e observabilidade.
 
     </td>
     <td width="38%">
@@ -74,9 +74,11 @@ Depois de construir tudo à mão no [Nidavellir](https://github.com/GustavoThe01
 
 | 🌐 API | 🏛️ Arquitetura | 🛡️ Produção | 🗓️ Processo |
 |:---:|:---:|:---:|:---:|
-| **~20** endpoints planejados | Hexagonal (Ports & Adapters) | JWT access + refresh | **20** dias / **4** semanas |
+| **14** endpoints planejados | Hexagonal (Ports & Adapters) | JWT access + refresh | **20** dias / **4** semanas |
 | ProblemDetail (RFC 9457) | domínio **sem** Spring/JPA | cache · rate limiting | **2** ADRs registrados |
 | OpenAPI / Swagger | regra verificada com ArchUnit | Docker · métricas · logs JSON | **4** releases (`v0.1` → `v1.0`) |
+
+<sub>Metas para o fim do roadmap. O estado atual está nos badges, na seção <a href="#-testes">Testes</a> e em <a href="#-o-que-ainda-falta">O que ainda falta</a>.</sub>
 
 </div>
 
@@ -86,7 +88,7 @@ Depois de construir tudo à mão no [Nidavellir](https://github.com/GustavoThe01
 
 > *Na mitologia grega, as Moiras eram três irmãs que controlavam o fio da vida: Cloto o tecia, Láquesis o media e Átropos o cortava.*
 
-Toda tarefa tem o mesmo destino: ela **nasce** (é criada), **é medida** (está em andamento, tem prazo e responsável) e **é cortada** (é concluída). A Moirai é a API que tece esse fio, garantindo que nenhuma tarefa pule etapas do seu destino.
+Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada), **é medida** (está em andamento, tem prazo e responsável) e **é cortada** (é concluída). A Moirai é a API que tece esse fio e garante que nenhuma tarefa pule etapas do seu destino.
 
 | Moira | Papel no mito | Papel na API |
 |---|---|---|
@@ -134,7 +136,7 @@ Exemplo de erro padronizado (**ProblemDetail, RFC 9457**):
 
 ```json
 {
-  "type": "https://moirai.dev/errors/invalid-transition",
+  "type": "/problems/invalid-transition",
   "title": "Transição de status inválida",
   "status": 422,
   "detail": "Uma tarefa em TODO não pode ir direto para DONE.",
@@ -146,7 +148,7 @@ Exemplo de erro padronizado (**ProblemDetail, RFC 9457**):
 
 ## 🏛️ Arquitetura Hexagonal
 
-O domínio fica no centro e **não conhece Spring, JPA nem HTTP**. O mundo externo conversa com ele por **portas** (interfaces) e **adaptadores** (implementações). Decisão registrada no [ADR 0001](docs/adr/0001-arquitetura-hexagonal.md).
+O domínio fica no centro e **não conhece Spring, JPA nem HTTP**. O mundo externo conversa com ele por **portas** (interfaces) e **adaptadores** (implementações). Registrei essa decisão no [ADR 0001](docs/adr/0001-arquitetura-hexagonal.md).
 
 ```mermaid
 flowchart LR
@@ -174,7 +176,7 @@ flowchart LR
     JPA --> DB
 ```
 
-> 🔄 **A prova da arquitetura:** no Dia 15, o banco de produção muda de SQLite para PostgreSQL **trocando apenas o adapter de persistência**, sem tocar em domínio nem em casos de uso.
+> 🔄 **A prova da arquitetura:** no Dia 15, vou trocar o banco de produção de SQLite para PostgreSQL **mexendo apenas no adapter de persistência**, sem tocar em domínio nem em casos de uso.
 
 ### Por dentro de uma requisição
 
@@ -253,8 +255,8 @@ stateDiagram-v2
 
 ## 🧭 Metodologias e decisões
 
-- **Domínio primeiro**: as regras nascem em Java puro, testadas sem subir o Spring.
-- **Roadmap diário público** com uma release por semana. Veja o [ROADMAP.md](ROADMAP.md).
+- **Domínio primeiro**: escrevo as regras em Java puro e testo sem subir o Spring.
+- **Roadmap diário público** com uma release por semana, registrado no [ROADMAP.md](ROADMAP.md).
 - **Conventional Commits**, versionamento semântico e **ADRs**.
 
 | ADR | Decisão | Status |
@@ -358,7 +360,7 @@ moirai-taskflow/
 
 ## 🧩 O que ainda falta
 
-Checklist vivo do que ainda precisa ser incrementado neste repositório.
+Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 
 **Projeto**
 - [ ] Domínio puro com máquina de estados e testes (Dia 02)
@@ -387,13 +389,13 @@ Checklist vivo do que ainda precisa ser incrementado neste repositório.
 | Projeto | Stack | Relação |
 |---|---|---|
 | ☿ [Mercurium](https://github.com/GustavoThe01/mercurium-sql) | SQLite | Fundamentos de modelagem e SQL |
-| ⚒ [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory) | Java 21 | **Base em Java puro**: o que lá é manual, aqui vira framework |
+| ⚒ [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory) | Java 21 | **O par deste projeto em Java puro**: o que lá faço à mão, aqui fica com o framework |
 | ⚖ [Plutus](https://github.com/GustavoThe01/plutus-ledger) | C# + Dapper | Modelagem de domínio em .NET |
 | ♾ **Moirai** | Spring Boot | *você está aqui* |
 | ✦ [Bifrost](https://github.com/GustavoThe01/bifrost-orders) | ASP.NET Core | A versão .NET de uma API pronta para produção, com Clean Architecture |
 
 <div align="center">
 
-<sub>Fio tecido por <a href="https://github.com/GustavoThe01">Gustavo Osterno Thé</a></sub>
+<sub>Fio tecido por mim · <a href="https://github.com/GustavoThe01">Gustavo Osterno Thé</a></sub>
 
 </div>

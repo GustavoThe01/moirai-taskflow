@@ -5,7 +5,7 @@
 
 ## Contexto
 A Moirai expõe uma API REST hoje, mas pode ganhar outras entradas (WebSocket, mensageria)
-e trocar de banco (SQLite em dev, PostgreSQL em produção). Queremos que o domínio de
+e trocar de banco (SQLite em dev, PostgreSQL em produção). Quero que o domínio de
 projetos e tarefas não conheça Spring, JPA nem HTTP.
 
 ## Decisão
@@ -26,8 +26,8 @@ adapter/out/persistence  ◄──implements──  application/port/out
 ## Alternativas consideradas
 - **MVC em camadas tradicional** (controller/service/repository) — familiar, porém entidades JPA
   viram o modelo de domínio e o framework vaza para as regras.
-- **Clean Architecture** — conceitualmente equivalente; já é explorada no projeto Bifrost (C#),
-  então aqui exploramos o vocabulário de portas e adaptadores.
+- **Clean Architecture** — conceitualmente equivalente; é a abordagem que aplico no projeto Bifrost (C#),
+  então aqui pratico o vocabulário de portas e adaptadores.
 
 ## Consequências
 - ✅ Domínio testável sem subir o contexto Spring.
