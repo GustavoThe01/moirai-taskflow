@@ -1,39 +1,399 @@
-# Moirai · taskflow-api
+<div align="center">
 
-> *As Moiras tecem, medem e cortam o fio do destino — como uma tarefa de TODO a DONE.*
+<img src="docs/assets/banner.svg" alt="Moirai — API de projetos e tarefas" width="100%" />
 
-API REST de **gestão de projetos e tarefas** (estilo quadro Kanban) com **Spring Boot**,
-**Arquitetura Hexagonal** (Ports & Adapters), JPA/Hibernate e SQLite.
+# ♾ Moirai
+### Tecer, medir e cortar o fio de cada tarefa
 
-## Competências demonstradas
-- **Arquitetura Hexagonal:** domínio isolado do framework, portas de entrada/saída, adapters
-- API REST bem desenhada: status codes, paginação, filtros, **ProblemDetail (RFC 9457)**
-- **Spring Data JPA** + Flyway, relacionamentos N:N, combate ao problema **N+1**
-- **Spring Security + JWT** (access/refresh token), autorização por recurso
-- Eventos de domínio, processamento assíncrono, cache (Caffeine), rate limiting
-- Observabilidade: logs estruturados, correlation id, Micrometer, Actuator
-- Testes: unitários, `@WebMvcTest`, `@DataJpaTest`, integração, **ArchUnit**
-- Docker multi-stage, docker-compose, GitHub Actions, OpenAPI/Swagger
+**API REST de gestão de projetos e tarefas (estilo Kanban) com Spring Boot 4 e Arquitetura Hexagonal.**
+Domínio isolado do framework, segurança com JWT, autorização por recurso, eventos assíncronos,<br/>
+cache, observabilidade e testes em todas as camadas, do domínio puro à API completa.
 
-## Domínio
-`User` · `Project` (membros) · `Task` (TODO → IN_PROGRESS → REVIEW → DONE) · `Comment` · `Label`
+[![CI](https://github.com/GustavoThe01/moirai-taskflow/actions/workflows/ci.yml/badge.svg)](https://github.com/GustavoThe01/moirai-taskflow/actions/workflows/ci.yml)
+![Java](https://img.shields.io/badge/Java-21_LTS-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
+![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_01_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-1_passando-15803d?style=flat-square)
 
-## Arquitetura planejada
+</div>
+
+---
+
+## 👨‍💻 Autor
+
+<table>
+  <tr>
+    <td width="62%">
+
+**Moirai** é o quarto projeto do meu portfólio público de Desenvolvedor Pleno, idealizado e mantido por **Gustavo Osterno Thé**.
+
+Depois de construir tudo à mão no [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory), aqui o desafio é outro: **usar o Spring sem deixar o Spring tomar conta do domínio**. A API é construída em 4 semanas, até ficar pronta para produção, com segurança, Docker e observabilidade.
+
+    </td>
+    <td width="38%">
+
+| | |
+|---|---|
+| 🌐 Site | [site-gustavothe-dev.web.app](https://site-gustavothe-dev.web.app/) |
+| 💼 LinkedIn | [gustavoosterno](https://www.linkedin.com/in/gustavoosterno/) |
+| 🐙 GitHub | [@GustavoThe01](https://github.com/GustavoThe01) |
+| 📸 Instagram | [@gustavo.osterno](https://www.instagram.com/gustavo.osterno) |
+
+    </td>
+  </tr>
+</table>
+
+---
+
+## 📑 Sumário
+
+- [Em números](#-em-números)
+- [A origem do nome](#-a-origem-do-nome)
+- [O que a API faz](#-o-que-a-api-faz)
+- [Endpoints planejados](#-endpoints-planejados)
+- [Arquitetura Hexagonal](#️-arquitetura-hexagonal)
+- [O ciclo de vida de uma tarefa](#-o-ciclo-de-vida-de-uma-tarefa)
+- [Segurança](#-segurança)
+- [Competências demonstradas](#-competências-demonstradas)
+- [Metodologias e decisões](#-metodologias-e-decisões)
+- [Roadmap](#️-roadmap)
+- [Como rodar](#-como-rodar)
+- [Testes](#-testes)
+- [Estrutura do projeto](#-estrutura-do-projeto)
+- [O que ainda falta](#-o-que-ainda-falta)
+- [Projetos relacionados](#-projetos-relacionados)
+
+---
+
+## 📊 Em números
+
+<div align="center">
+
+| 🌐 API | 🏛️ Arquitetura | 🛡️ Produção | 🗓️ Processo |
+|:---:|:---:|:---:|:---:|
+| **~20** endpoints planejados | Hexagonal (Ports & Adapters) | JWT access + refresh | **20** dias / **4** semanas |
+| ProblemDetail (RFC 9457) | domínio **sem** Spring/JPA | cache · rate limiting | **2** ADRs registrados |
+| OpenAPI / Swagger | regra verificada com ArchUnit | Docker · métricas · logs JSON | **4** releases (`v0.1` → `v1.0`) |
+
+</div>
+
+---
+
+## ♾ A origem do nome
+
+> *Na mitologia grega, as Moiras eram três irmãs que controlavam o fio da vida: Cloto o tecia, Láquesis o media e Átropos o cortava.*
+
+Toda tarefa tem o mesmo destino: ela **nasce** (é criada), **é medida** (está em andamento, tem prazo e responsável) e **é cortada** (é concluída). A Moirai é a API que tece esse fio, garantindo que nenhuma tarefa pule etapas do seu destino.
+
+| Moira | Papel no mito | Papel na API |
+|---|---|---|
+| 🧵 **Cloto** | Tece o fio | `TODO` — a tarefa é criada |
+| 📏 **Láquesis** | Mede o fio | `IN_PROGRESS` / `REVIEW` — prazo, responsável, revisão |
+| ✂️ **Átropos** | Corta o fio | `DONE` — a tarefa é encerrada |
+
+---
+
+## ✨ O que a API faz
+
+| Módulo | O que resolve |
+|---|---|
+| 👤 **Usuários** | Cadastro, login com senha BCrypt e tokens JWT (access + refresh) |
+| 📁 **Projetos** | Criação, membros e permissões: só quem participa enxerga o projeto |
+| ✅ **Tarefas** | Criação, atribuição, prioridade, prazo e **máquina de estados** |
+| 🏷️ **Labels** | Etiquetas reutilizáveis (relação N:N com tarefas) |
+| 💬 **Comentários** | Discussão dentro de cada tarefa |
+| 🔎 **Busca** | Paginação, ordenação e filtros dinâmicos (status, responsável, prazo) |
+| 🔔 **Eventos** | Mudança de status dispara notificação assíncrona |
+| 📈 **Operação** | Health check, métricas, logs estruturados e correlation id |
+
+---
+
+## 🌐 Endpoints planejados
+
+| Método | Rota | Descrição | Dia |
+|---|---|---|:---:|
+| `GET` | `/actuator/health` | Saúde da aplicação | ✅ 01 |
+| `POST` | `/api/v1/auth/register` | Cadastro de usuário | 11 |
+| `POST` | `/api/v1/auth/login` | Login, retorna access + refresh token | 12 |
+| `POST` | `/api/v1/auth/refresh` | Renova o access token | 12 |
+| `GET` | `/api/v1/projects` | Lista projetos do usuário (paginado) | 04 |
+| `POST` | `/api/v1/projects` | Cria projeto | 04 |
+| `GET` | `/api/v1/projects/{id}` | Detalhe do projeto | 04 |
+| `POST` | `/api/v1/projects/{id}/members` | Adiciona membro | 13 |
+| `GET` | `/api/v1/projects/{id}/tasks` | Lista tarefas com filtros | 06 |
+| `POST` | `/api/v1/projects/{id}/tasks` | Cria tarefa | 05 |
+| `PATCH` | `/api/v1/tasks/{id}/status` | Move a tarefa no fluxo | 05 |
+| `PATCH` | `/api/v1/tasks/{id}/assignee` | Atribui responsável | 05 |
+| `POST` | `/api/v1/tasks/{id}/comments` | Comenta na tarefa | 09 |
+| `PUT` | `/api/v1/tasks/{id}/labels` | Define labels | 09 |
+
+Exemplo de erro padronizado (**ProblemDetail, RFC 9457**):
+
+```json
+{
+  "type": "https://moirai.dev/errors/invalid-transition",
+  "title": "Transição de status inválida",
+  "status": 422,
+  "detail": "Uma tarefa em TODO não pode ir direto para DONE.",
+  "instance": "/api/v1/tasks/42/status"
+}
 ```
-src/main/java/dev/gustavo/moirai/
-├── domain/                 # modelo puro (sem anotações Spring/JPA)
-├── application/
-│   ├── port/in/            # casos de uso (interfaces)
-│   ├── port/out/           # repositórios, notificações (interfaces)
-│   └── service/            # implementações dos casos de uso
-├── adapter/
-│   ├── in/web/             # controllers, DTOs, handlers de erro
-│   └── out/persistence/    # entidades JPA, mappers, repositórios
-└── config/                 # segurança, beans, OpenAPI
+
+---
+
+## 🏛️ Arquitetura Hexagonal
+
+O domínio fica no centro e **não conhece Spring, JPA nem HTTP**. O mundo externo conversa com ele por **portas** (interfaces) e **adaptadores** (implementações). Decisão registrada no [ADR 0001](docs/adr/0001-arquitetura-hexagonal.md).
+
+```mermaid
+flowchart LR
+    subgraph IN["Adapters de entrada"]
+        WEB["adapter/in/web<br/>Controllers REST · DTOs<br/>ProblemDetail"]
+    end
+    subgraph CORE["Núcleo da aplicação"]
+        PIN["port/in<br/>Casos de uso"]
+        SVC["service<br/>Implementação dos casos de uso"]
+        DOM["domain<br/>Project · Task · TaskStatus<br/>regras puras"]
+        POUT["port/out<br/>Repositórios · Notificações"]
+    end
+    subgraph OUT["Adapters de saída"]
+        JPA["adapter/out/persistence<br/>Entidades JPA · Mappers"]
+        NOTIF["Notificações<br/>@Async"]
+    end
+    DB[(SQLite dev<br/>PostgreSQL prod)]
+
+    WEB --> PIN
+    PIN --> SVC
+    SVC --> DOM
+    SVC --> POUT
+    JPA -. implementa .-> POUT
+    NOTIF -. implementa .-> POUT
+    JPA --> DB
 ```
 
-## Como rodar
-_A preencher no Dia 15 (Docker)._
+> 🔄 **A prova da arquitetura:** no Dia 15, o banco de produção muda de SQLite para PostgreSQL **trocando apenas o adapter de persistência**, sem tocar em domínio nem em casos de uso.
 
-## Status
-Veja o [ROADMAP.md](ROADMAP.md).
+### Por dentro de uma requisição
+
+```mermaid
+sequenceDiagram
+    actor C as Cliente
+    participant F as JwtFilter
+    participant W as TaskController
+    participant UC as MoveTaskUseCase
+    participant D as Task (domínio)
+    participant P as TaskPersistenceAdapter
+    participant E as EventPublisher
+
+    C->>F: PATCH /tasks/42/status (Bearer token)
+    F->>W: usuário autenticado
+    W->>UC: moveTask(42, IN_PROGRESS, user)
+    UC->>P: loadTask(42)
+    P-->>UC: Task
+    UC->>D: moveTo(IN_PROGRESS, user)
+    alt transição válida e usuário é membro
+        D-->>UC: ok + TaskStatusChanged
+        UC->>P: save(task)
+        UC->>E: publish(TaskStatusChanged)
+        W-->>C: 200 OK
+    else regra violada
+        D-->>UC: exceção de domínio
+        W-->>C: 422 ProblemDetail
+    end
+```
+
+---
+
+## 🔄 O ciclo de vida de uma tarefa
+
+```mermaid
+stateDiagram-v2
+    [*] --> TODO : 🧵 Cloto tece
+    TODO --> IN_PROGRESS : alguém assume
+    IN_PROGRESS --> REVIEW : pede revisão
+    REVIEW --> IN_PROGRESS : ajustes solicitados
+    REVIEW --> DONE : ✂️ Átropos corta
+    IN_PROGRESS --> TODO : devolvida
+    DONE --> [*]
+```
+
+---
+
+## 🔐 Segurança
+
+| Camada | Como |
+|---|---|
+| **Senhas** | BCrypt, nunca em texto puro |
+| **Autenticação** | JWT de curta duração (access) + refresh token |
+| **Autorização** | Por papel (`USER`, `ADMIN`) e **por recurso**: só membros acessam o projeto |
+| **Erros** | `401` sem token válido, `403` sem permissão, sem vazar detalhes internos |
+| **Segredos** | Variáveis de ambiente por profile (`dev`, `test`, `prod`), nada no repositório |
+| **Abuso** | Rate limiting por usuário (Bucket4j) |
+
+---
+
+## 🧠 Competências demonstradas
+
+| Área | Conceitos |
+|---|---|
+| **Arquitetura** | Hexagonal, portas e adaptadores, separação domínio × JPA, mappers (MapStruct) |
+| **API REST** | Verbos e status corretos, paginação, filtros (Specifications), ProblemDetail, OpenAPI |
+| **Persistência** | Spring Data JPA, Flyway, relacionamentos N:N, **problema N+1** e `@EntityGraph`, auditoria |
+| **Segurança** | Spring Security, JWT, BCrypt, `@PreAuthorize`, autorização por recurso |
+| **Assíncrono** | Eventos de domínio, `ApplicationEventPublisher`, `@Async` |
+| **Performance** | Cache com Caffeine, rate limiting |
+| **Observabilidade** | Logs JSON, correlation id (MDC), Micrometer, Actuator |
+| **Testes** | Unitários puros, `@WebMvcTest`, `@DataJpaTest`, `@SpringBootTest`, ArchUnit |
+| **DevOps** | Maven Wrapper, Docker multi-stage, docker-compose, GitHub Actions, SonarCloud |
+
+---
+
+## 🧭 Metodologias e decisões
+
+- **Domínio primeiro**: as regras nascem em Java puro, testadas sem subir o Spring.
+- **Roadmap diário público** com uma release por semana. Veja o [ROADMAP.md](ROADMAP.md).
+- **Conventional Commits**, versionamento semântico e **ADRs**.
+
+| ADR | Decisão | Status |
+|---|---|---|
+| [0001](docs/adr/0001-arquitetura-hexagonal.md) | Arquitetura Hexagonal (Ports & Adapters) | ✅ Aceita |
+| [0002](docs/adr/0002-sqlite-em-desenvolvimento.md) | SQLite em desenvolvimento, PostgreSQL em produção | ✅ Aceita |
+
+---
+
+## 🗺️ Roadmap
+
+| Semana | Dias | Tema | Release | Progresso |
+|---|---|---|:---:|---|
+| 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪⬜⬜⬜⬜ |
+| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | ⬜⬜⬜⬜⬜ |
+| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
+| 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
+
+Detalhes no [ROADMAP.md](ROADMAP.md) · Mudanças no [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## 🚀 Como rodar
+
+**Pré-requisito:** JDK 21 ([Temurin](https://adoptium.net/)). O Maven vem pelo wrapper.
+
+```bash
+git clone https://github.com/GustavoThe01/moirai-taskflow.git
+```
+
+```bash
+cd moirai-taskflow
+```
+
+Subir a API (Linux/macOS/Git Bash; no Windows use `mvnw.cmd`):
+
+```bash
+./mvnw spring-boot:run
+```
+
+Verificar se está no ar:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Resposta esperada: `{"status":"UP"}`
+
+> 🐳 A partir do Dia 15: `docker compose up` sobe a API com PostgreSQL.
+> 📘 A partir do Dia 07: documentação interativa em `http://localhost:8080/swagger-ui.html`.
+
+---
+
+## 🧪 Testes
+
+```bash
+./mvnw verify
+```
+
+| Tipo | Ferramentas | Situação |
+|---|---|---|
+| Contexto da aplicação | `@SpringBootTest` | 🟡 1 teste (contexto carrega) |
+| Domínio puro | JUnit + AssertJ, sem Spring | ⏳ Dia 02 |
+| Controllers | `@WebMvcTest` + MockMvc | ⏳ Dia 08 |
+| Repositórios | `@DataJpaTest` | ⏳ Dia 08 |
+| Segurança | testes `401` × `403` | ⏳ Dia 13 |
+| Arquitetura | ArchUnit | ⏳ Dia 19 |
+| Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
+
+---
+
+## 📁 Estrutura do projeto
+
+```
+moirai-taskflow/
+├── .github/workflows/ci.yml                 # ✅ build + testes a cada push
+├── .mvn/wrapper/                            # ✅ Maven Wrapper
+├── docs/
+│   ├── adr/                                 # ✅ decisões de arquitetura
+│   └── assets/                              # ✅ banner e imagens
+├── src/main/java/dev/gustavo/moirai/
+│   ├── MoiraiApplication.java               # ✅ ponto de entrada
+│   ├── domain/                              # ⏳ Dia 02 — Project, Task, TaskStatus
+│   ├── application/
+│   │   ├── port/in/                         # ⏳ Dia 04 — casos de uso
+│   │   ├── port/out/                        # ⏳ Dia 03 — repositórios
+│   │   └── service/                         # ⏳ Dia 04 — implementações
+│   ├── adapter/
+│   │   ├── in/web/                          # ⏳ Dia 04 — controllers, DTOs
+│   │   └── out/persistence/                 # ⏳ Dia 03 — JPA, mappers
+│   └── config/                              # ⏳ Dia 11 — segurança, OpenAPI
+├── src/main/resources/application.yml       # ✅ configuração + Actuator
+├── src/test/java/...                        # ✅ teste de contexto
+├── pom.xml
+├── mvnw · mvnw.cmd
+├── CHANGELOG.md
+└── ROADMAP.md
+```
+
+---
+
+## 🧩 O que ainda falta
+
+Checklist vivo do que ainda precisa ser incrementado neste repositório.
+
+**Projeto**
+- [ ] Domínio puro com máquina de estados e testes (Dia 02)
+- [ ] JPA, Flyway, SQLite e adapter de persistência (Dia 03)
+- [ ] CRUD de projetos e tarefas, ProblemDetail (Dias 04–05) → `v0.1.0`
+- [ ] Paginação, filtros, OpenAPI e testes de camada (Dias 06–08)
+- [ ] Labels, comentários, N+1 e auditoria (Dias 09–10) → `v0.2.0`
+- [ ] Usuários, JWT e autorização por recurso (Dias 11–13)
+- [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`
+- [ ] Eventos, cache, rate limiting, observabilidade (Dias 16–18)
+- [ ] ArchUnit, JaCoCo, SonarCloud e release final (Dias 19–20) → `v1.0.0`
+
+**README**
+- [ ] Prints do Swagger UI e GIF de um fluxo completo (login → criar tarefa → mover)
+- [ ] Coleção de requisições (`requests.http` / Postman) linkada aqui
+- [ ] Badges de cobertura e de qualidade (SonarCloud)
+- [ ] Link do deploy, se publicado (Render / Fly.io)
+- [ ] Atualizar "Em números", endpoints e testes com valores reais
+- [ ] Definir e adicionar uma licença (`LICENSE`)
+- [ ] Versão em inglês do README
+
+---
+
+## 🔗 Projetos relacionados
+
+| Projeto | Stack | Relação |
+|---|---|---|
+| ☿ [Mercurium](https://github.com/GustavoThe01/mercurium-sql) | SQLite | Fundamentos de modelagem e SQL |
+| ⚒ [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory) | Java 21 | **Base em Java puro**: o que lá é manual, aqui vira framework |
+| ⚖ [Plutus](https://github.com/GustavoThe01/plutus-ledger) | C# + Dapper | Modelagem de domínio em .NET |
+| ♾ **Moirai** | Spring Boot | *você está aqui* |
+| ✦ [Bifrost](https://github.com/GustavoThe01/bifrost-orders) | ASP.NET Core | A versão .NET de uma API pronta para produção, com Clean Architecture |
+
+<div align="center">
+
+<sub>Fio tecido por <a href="https://github.com/GustavoThe01">Gustavo Osterno Thé</a></sub>
+
+</div>
