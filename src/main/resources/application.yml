@@ -1,6 +1,15 @@
 spring:
   application:
     name: moirai-taskflow
+  datasource:
+    url: jdbc:sqlite:moirai.db?foreign_keys=on
+    hikari:
+      maximum-pool-size: 1 # o SQLite aceita um único escritor por vez
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate # quem cria o schema é o Flyway; o Hibernate só confere
 
 server:
   port: 8080

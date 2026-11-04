@@ -60,6 +60,20 @@ public final class Task {
                 title, description, priority, dueDate);
     }
 
+    /**
+     * Reconstrói uma tarefa já existente a partir de um adapter de persistência.
+     *
+     * <p>Não valida o prazo: uma tarefa antiga pode, legitimamente, estar com o prazo vencido.
+     */
+    public static Task restore(TaskId id, ProjectId projectId, UserId createdBy, Instant createdAt,
+                               String title, String description, TaskPriority priority, LocalDate dueDate,
+                               TaskStatus status, UserId assigneeId) {
+        Task task = new Task(id, projectId, createdBy, createdAt, title, description, priority, dueDate);
+        task.status = Objects.requireNonNull(status, "status");
+        task.assigneeId = assigneeId;
+        return task;
+    }
+
     public void assignTo(UserId assignee, UserId actor, Project project) {
         requireSameProject(project);
         requireNotDone();

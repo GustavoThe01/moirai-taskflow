@@ -1,5 +1,6 @@
 package dev.gustavo.moirai.domain;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Objects;
@@ -34,6 +35,13 @@ public final class Project {
 
     public static Project create(String name, UserId ownerId) {
         return new Project(ProjectId.newId(), name, ownerId);
+    }
+
+    /** Reconstrói um projeto já existente a partir de um adapter de persistência. */
+    public static Project restore(ProjectId id, String name, UserId ownerId, Collection<UserId> members) {
+        Project project = new Project(id, name, ownerId);
+        project.members.addAll(members);
+        return project;
     }
 
     public void addMember(UserId newMember, UserId actor) {
