@@ -15,8 +15,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_02_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-39_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_03_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-46_passando-15803d?style=flat-square)
 
 </div>
 
@@ -75,7 +75,7 @@ No [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory) eu constru
 | 🌐 API | 🏛️ Arquitetura | 🛡️ Produção | 🗓️ Processo |
 |:---:|:---:|:---:|:---:|
 | **14** endpoints planejados | Hexagonal (Ports & Adapters) | JWT access + refresh | **20** dias / **4** semanas |
-| ProblemDetail (RFC 9457) | domínio **sem** Spring/JPA | cache · rate limiting | **2** ADRs registrados |
+| ProblemDetail (RFC 9457) | domínio **sem** Spring/JPA | cache · rate limiting | **3** ADRs registrados |
 | OpenAPI / Swagger | regra verificada com ArchUnit | Docker · métricas · logs JSON | **4** releases (`v0.1` → `v1.0`) |
 
 <sub>Metas para o fim do roadmap. O estado atual está nos badges, na seção <a href="#-testes">Testes</a> e em <a href="#-o-que-ainda-falta">O que ainda falta</a>.</sub>
@@ -241,7 +241,7 @@ stateDiagram-v2
 
 | Área | Conceitos |
 |---|---|
-| **Arquitetura** | Hexagonal, portas e adaptadores, separação domínio × JPA, mappers (MapStruct) |
+| **Arquitetura** | Hexagonal, portas e adaptadores, separação domínio × JPA, mappers explícitos |
 | **API REST** | Verbos e status corretos, paginação, filtros (Specifications), ProblemDetail, OpenAPI |
 | **Persistência** | Spring Data JPA, Flyway, relacionamentos N:N, **problema N+1** e `@EntityGraph`, auditoria |
 | **Segurança** | Spring Security, JWT, BCrypt, `@PreAuthorize`, autorização por recurso |
@@ -263,6 +263,7 @@ stateDiagram-v2
 |---|---|---|
 | [0001](docs/adr/0001-arquitetura-hexagonal.md) | Arquitetura Hexagonal (Ports & Adapters) | ✅ Aceita |
 | [0002](docs/adr/0002-sqlite-em-desenvolvimento.md) | SQLite em desenvolvimento, PostgreSQL em produção | ✅ Aceita |
+| [0003](docs/adr/0003-mappers-escritos-a-mao.md) | Mappers escritos à mão em vez de MapStruct | ✅ Aceita |
 
 ---
 
@@ -270,7 +271,7 @@ stateDiagram-v2
 
 | Semana | Dias | Tema | Release | Progresso |
 |---|---|---|:---:|---|
-| 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪⬜⬜⬜ |
+| 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪⬜⬜ |
 | 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | ⬜⬜⬜⬜⬜ |
 | 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
@@ -303,7 +304,9 @@ Verificar se está no ar:
 curl http://localhost:8080/actuator/health
 ```
 
-Resposta esperada: `{"status":"UP"}`
+Resposta esperada: `{"groups":["liveness","readiness"],"status":"UP"}`
+
+Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e aplica as migrations.
 
 > 🐳 A partir do Dia 15: `docker compose up` sobe a API com PostgreSQL.
 > 📘 A partir do Dia 07: documentação interativa em `http://localhost:8080/swagger-ui.html`.
@@ -321,6 +324,7 @@ Resposta esperada: `{"status":"UP"}`
 | Contexto da aplicação | `@SpringBootTest` | ✅ 1 teste (contexto carrega) |
 | Domínio puro | JUnit + AssertJ, sem Spring | ✅ 38 testes (Task, Project, TaskStatus) |
 | Controllers | `@WebMvcTest` + MockMvc | ⏳ Dia 08 |
+| Persistência | `@SpringBootTest` + SQLite real | ✅ 7 testes (migrations, mapeamento, chave estrangeira) |
 | Repositórios | `@DataJpaTest` | ⏳ Dia 08 |
 | Segurança | testes `401` × `403` | ⏳ Dia 13 |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
@@ -342,14 +346,15 @@ moirai-taskflow/
 │   ├── domain/                              # ✅ Project, Task, TaskStatus, ids e exceções
 │   ├── application/
 │   │   ├── port/in/                         # ⏳ Dia 04 — casos de uso
-│   │   ├── port/out/                        # ⏳ Dia 03 — repositórios
+│   │   ├── port/out/                        # ✅ ProjectRepository, TaskRepository
 │   │   └── service/                         # ⏳ Dia 04 — implementações
 │   ├── adapter/
 │   │   ├── in/web/                          # ⏳ Dia 04 — controllers, DTOs
-│   │   └── out/persistence/                 # ⏳ Dia 03 — JPA, mappers
+│   │   └── out/persistence/                 # ✅ entidades JPA, mapper, adapters
 │   └── config/                              # ⏳ Dia 11 — segurança, OpenAPI
-├── src/main/resources/application.yml       # ✅ configuração + Actuator
-├── src/test/java/...                        # ✅ teste de contexto
+├── src/main/resources/application.yml       # ✅ configuração, datasource e Actuator
+├── src/main/resources/db/migration/         # ✅ migrations do Flyway
+├── src/test/java/...                        # ✅ testes de domínio, contexto e persistência
 ├── pom.xml
 ├── mvnw · mvnw.cmd
 ├── CHANGELOG.md
@@ -364,7 +369,7 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 
 **Projeto**
 - [x] Domínio puro com máquina de estados e testes (Dia 02)
-- [ ] JPA, Flyway, SQLite e adapter de persistência (Dia 03)
+- [x] JPA, Flyway, SQLite e adapter de persistência (Dia 03)
 - [ ] CRUD de projetos e tarefas, ProblemDetail (Dias 04–05) → `v0.1.0`
 - [ ] Paginação, filtros, OpenAPI e testes de camada (Dias 06–08)
 - [ ] Labels, comentários, N+1 e auditoria (Dias 09–10) → `v0.2.0`

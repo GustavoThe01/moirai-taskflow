@@ -14,10 +14,10 @@
 - [x] Testes unitários sem Spring (rápidos)
 
 ### Dia 03 — Persistência
-- [ ] Dependências: Data JPA, Flyway, `sqlite-jdbc`, `hibernate-community-dialects`
-- [ ] Migrations Flyway (`V1__init.sql`)
-- [ ] Entidades JPA **separadas** do domínio + mappers (MapStruct)
-- [ ] Adapter de persistência implementando a porta de saída
+- [x] Dependências: Data JPA, Flyway, `sqlite-jdbc`, `hibernate-community-dialects`
+- [x] Migrations Flyway (`V1__init.sql`)
+- [x] Entidades JPA **separadas** do domínio + mappers escritos à mão (decisão no ADR 0003)
+- [x] Adapter de persistência implementando a porta de saída
 
 ### Dia 04 — Casos de uso e API de projetos
 - [ ] Portas de entrada (`CreateProjectUseCase`...) e serviços
