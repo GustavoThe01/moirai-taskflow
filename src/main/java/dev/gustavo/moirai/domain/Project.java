@@ -63,6 +63,11 @@ public final class Project {
         name = validateName(newName);
     }
 
+    /** Excluir um projeto apaga as tarefas dele, então só o dono pode fazer isso. */
+    public void requireCanBeDeletedBy(UserId actor) {
+        requireOwner(actor, "excluir o projeto");
+    }
+
     public boolean isMember(UserId userId) {
         return members.contains(userId);
     }

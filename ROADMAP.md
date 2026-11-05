@@ -20,9 +20,9 @@
 - [x] Adapter de persistência implementando a porta de saída
 
 ### Dia 04 — Casos de uso e API de projetos
-- [ ] Portas de entrada (`CreateProjectUseCase`...) e serviços
-- [ ] `ProjectController` (CRUD), DTOs com `record`, Bean Validation
-- [ ] Arquivo `requests.http` para testar manualmente
+- [x] Portas de entrada (`CreateProjectUseCase`...) e serviços
+- [x] `ProjectController` (CRUD), DTOs com `record`, Bean Validation
+- [x] Arquivo `requests.http` para testar manualmente
 
 ### Dia 05 — API de tarefas e erros
 - [ ] Endpoints de tarefas (criar, mover status, atribuir)
