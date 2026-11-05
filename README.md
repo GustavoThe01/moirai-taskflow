@@ -15,8 +15,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_03_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-46_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_04_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-59_passando-15803d?style=flat-square)
 
 </div>
 
@@ -74,7 +74,7 @@ No [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory) eu constru
 
 | 🌐 API | 🏛️ Arquitetura | 🛡️ Produção | 🗓️ Processo |
 |:---:|:---:|:---:|:---:|
-| **14** endpoints planejados | Hexagonal (Ports & Adapters) | JWT access + refresh | **20** dias / **4** semanas |
+| **16** endpoints planejados | Hexagonal (Ports & Adapters) | JWT access + refresh | **20** dias / **4** semanas |
 | ProblemDetail (RFC 9457) | domínio **sem** Spring/JPA | cache · rate limiting | **3** ADRs registrados |
 | OpenAPI / Swagger | regra verificada com ArchUnit | Docker · métricas · logs JSON | **4** releases (`v0.1` → `v1.0`) |
 
@@ -121,9 +121,11 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | `POST` | `/api/v1/auth/register` | Cadastro de usuário | 11 |
 | `POST` | `/api/v1/auth/login` | Login, retorna access + refresh token | 12 |
 | `POST` | `/api/v1/auth/refresh` | Renova o access token | 12 |
-| `GET` | `/api/v1/projects` | Lista projetos do usuário (paginado) | 04 |
-| `POST` | `/api/v1/projects` | Cria projeto | 04 |
-| `GET` | `/api/v1/projects/{id}` | Detalhe do projeto | 04 |
+| `GET` | `/api/v1/projects` | Lista projetos do usuário (paginação no Dia 06) | ✅ 04 |
+| `POST` | `/api/v1/projects` | Cria projeto | ✅ 04 |
+| `GET` | `/api/v1/projects/{id}` | Detalhe do projeto | ✅ 04 |
+| `PUT` | `/api/v1/projects/{id}` | Renomeia o projeto (só o dono) | ✅ 04 |
+| `DELETE` | `/api/v1/projects/{id}` | Exclui o projeto (só o dono) | ✅ 04 |
 | `POST` | `/api/v1/projects/{id}/members` | Adiciona membro | 13 |
 | `GET` | `/api/v1/projects/{id}/tasks` | Lista tarefas com filtros | 06 |
 | `POST` | `/api/v1/projects/{id}/tasks` | Cria tarefa | 05 |
@@ -131,6 +133,8 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | `PATCH` | `/api/v1/tasks/{id}/assignee` | Atribui responsável | 05 |
 | `POST` | `/api/v1/tasks/{id}/comments` | Comenta na tarefa | 09 |
 | `PUT` | `/api/v1/tasks/{id}/labels` | Define labels | 09 |
+
+> Até o Dia 12, o usuário é informado pelo cabeçalho `X-User-Id`, de forma temporária. Depois, o JWT o substitui. Deixei exemplos de todas as chamadas em [`requests.http`](requests.http).
 
 Exemplo de erro padronizado (**ProblemDetail, RFC 9457**):
 
@@ -271,7 +275,7 @@ stateDiagram-v2
 
 | Semana | Dias | Tema | Release | Progresso |
 |---|---|---|:---:|---|
-| 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪⬜⬜ |
+| 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪⬜ |
 | 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | ⬜⬜⬜⬜⬜ |
 | 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
@@ -323,6 +327,8 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 |---|---|---|
 | Contexto da aplicação | `@SpringBootTest` | ✅ 1 teste (contexto carrega) |
 | Domínio puro | JUnit + AssertJ, sem Spring | ✅ 38 testes (Task, Project, TaskStatus) |
+| Casos de uso | JUnit + Mockito, sem Spring | ✅ 6 testes |
+| API de ponta a ponta | `@SpringBootTest` + MockMvc + SQLite | ✅ 7 testes |
 | Controllers | `@WebMvcTest` + MockMvc | ⏳ Dia 08 |
 | Persistência | `@SpringBootTest` + SQLite real | ✅ 7 testes (migrations, mapeamento, chave estrangeira) |
 | Repositórios | `@DataJpaTest` | ⏳ Dia 08 |
@@ -345,16 +351,17 @@ moirai-taskflow/
 │   ├── MoiraiApplication.java               # ✅ ponto de entrada
 │   ├── domain/                              # ✅ Project, Task, TaskStatus, ids e exceções
 │   ├── application/
-│   │   ├── port/in/                         # ⏳ Dia 04 — casos de uso
+│   │   ├── port/in/                         # ✅ casos de uso de projetos
 │   │   ├── port/out/                        # ✅ ProjectRepository, TaskRepository
-│   │   └── service/                         # ⏳ Dia 04 — implementações
+│   │   └── service/                         # ✅ ProjectService
 │   ├── adapter/
-│   │   ├── in/web/                          # ⏳ Dia 04 — controllers, DTOs
+│   │   ├── in/web/                          # ✅ ProjectController, DTOs
 │   │   └── out/persistence/                 # ✅ entidades JPA, mapper, adapters
 │   └── config/                              # ⏳ Dia 11 — segurança, OpenAPI
 ├── src/main/resources/application.yml       # ✅ configuração, datasource e Actuator
 ├── src/main/resources/db/migration/         # ✅ migrations do Flyway
 ├── src/test/java/...                        # ✅ testes de domínio, contexto e persistência
+├── requests.http                            # ✅ exemplos de chamadas à API
 ├── pom.xml
 ├── mvnw · mvnw.cmd
 ├── CHANGELOG.md
@@ -370,7 +377,8 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 **Projeto**
 - [x] Domínio puro com máquina de estados e testes (Dia 02)
 - [x] JPA, Flyway, SQLite e adapter de persistência (Dia 03)
-- [ ] CRUD de projetos e tarefas, ProblemDetail (Dias 04–05) → `v0.1.0`
+- [x] Casos de uso e API de projetos (Dia 04)
+- [ ] API de tarefas e erros padronizados com ProblemDetail (Dia 05) → `v0.1.0`
 - [ ] Paginação, filtros, OpenAPI e testes de camada (Dias 06–08)
 - [ ] Labels, comentários, N+1 e auditoria (Dias 09–10) → `v0.2.0`
 - [ ] Usuários, JWT e autorização por recurso (Dias 11–13)
