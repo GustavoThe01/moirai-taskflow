@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.gustavo.moirai.application.port.out.ProjectRepository;
-import dev.gustavo.moirai.domain.BusinessRuleViolationException;
+import dev.gustavo.moirai.domain.ForbiddenOperationException;
 import dev.gustavo.moirai.domain.NotProjectMemberException;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
@@ -66,7 +66,7 @@ class ProjectServiceTest {
         Project project = existing();
 
         assertThatThrownBy(() -> service.rename(project.id(), "Novo nome", stranger))
-                .isInstanceOf(BusinessRuleViolationException.class);
+                .isInstanceOf(ForbiddenOperationException.class);
         verify(repository, never()).save(any());
     }
 
@@ -76,7 +76,7 @@ class ProjectServiceTest {
         Project project = existing();
 
         assertThatThrownBy(() -> service.delete(project.id(), stranger))
-                .isInstanceOf(BusinessRuleViolationException.class);
+                .isInstanceOf(ForbiddenOperationException.class);
         verify(repository, never()).delete(any());
     }
 

@@ -152,7 +152,7 @@ class TaskTest {
         void onlyAssigneeSendsToReview() {
             Task task = taskInProgressBy(ana);
             assertThatThrownBy(() -> task.moveTo(TaskStatus.REVIEW, owner, project))
-                    .isInstanceOf(BusinessRuleViolationException.class)
+                    .isInstanceOf(ForbiddenOperationException.class)
                     .hasMessageContaining("responsável");
         }
 

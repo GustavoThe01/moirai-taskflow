@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [0.1.0] - 2026-11-06
 
 ### Adicionado
 - Projeto Spring Boot 4.1 (Java 21) com Web MVC, Validation e Actuator.
@@ -23,3 +23,7 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - API REST de projetos: criar, listar, detalhar, renomear e excluir, com DTOs e Bean Validation.
 - Arquivo `requests.http` para testar a API à mão.
 - 13 testes novos: 6 de casos de uso e 7 da API de ponta a ponta.
+- API de tarefas: criar, atribuir responsável e mover no fluxo, com `TaskService` e `TaskController`.
+- Erros padronizados com ProblemDetail (RFC 9457) em um único `ApiExceptionHandler`, incluindo validação campo a campo.
+- `ForbiddenOperationException`, que separa falta de permissão (403) de regra de negócio violada (422).
+- 14 testes novos: 5 de casos de uso e 9 da API de ponta a ponta.
