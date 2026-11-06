@@ -25,9 +25,9 @@
 - [x] Arquivo `requests.http` para testar manualmente
 
 ### Dia 05 — API de tarefas e erros
-- [ ] Endpoints de tarefas (criar, mover status, atribuir)
-- [ ] `@RestControllerAdvice` retornando **ProblemDetail**
-- [ ] Tag `v0.1.0`
+- [x] Endpoints de tarefas (criar, mover status, atribuir)
+- [x] `@RestControllerAdvice` retornando **ProblemDetail**
+- [x] Tag `v0.1.0`
 
 ## Semana 2 — API madura  → `v0.2.0`
 

@@ -93,7 +93,7 @@ public final class Task {
             throw new BusinessRuleViolationException("Atribua um responsável antes de iniciar a tarefa.");
         }
         if (target == TaskStatus.REVIEW && !actor.equals(assigneeId)) {
-            throw new BusinessRuleViolationException("Só o responsável pela tarefa pode enviá-la para revisão.");
+            throw new ForbiddenOperationException("Só o responsável pela tarefa pode enviá-la para revisão.");
         }
         status = target;
     }

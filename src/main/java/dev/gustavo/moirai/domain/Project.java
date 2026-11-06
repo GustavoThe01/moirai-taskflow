@@ -97,7 +97,7 @@ public final class Project {
 
     private void requireOwner(UserId actor, String action) {
         if (!ownerId.equals(actor)) {
-            throw new BusinessRuleViolationException("Só o dono do projeto pode %s.".formatted(action));
+            throw new ForbiddenOperationException("Só o dono do projeto pode %s.".formatted(action));
         }
     }
 

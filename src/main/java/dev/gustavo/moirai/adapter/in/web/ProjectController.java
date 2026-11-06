@@ -8,22 +8,16 @@ import dev.gustavo.moirai.application.port.in.ProjectUseCases.DeleteProject;
 import dev.gustavo.moirai.application.port.in.ProjectUseCases.GetProject;
 import dev.gustavo.moirai.application.port.in.ProjectUseCases.ListProjects;
 import dev.gustavo.moirai.application.port.in.ProjectUseCases.RenameProject;
-import dev.gustavo.moirai.domain.BusinessRuleViolationException;
-import dev.gustavo.moirai.domain.InvalidValueException;
-import dev.gustavo.moirai.domain.NotProjectMemberException;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
-import dev.gustavo.moirai.domain.ProjectNotFoundException;
 import dev.gustavo.moirai.domain.UserId;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,7 +32,6 @@ import org.springframework.web.bind.annotation.RestController;
  * API de projetos.
  *
  * <p>O usuário vem do cabeçalho {@code X-User-Id} apenas até o Dia 12, quando o JWT o substitui.
- * Os tratamentos de erro ficam aqui até o Dia 05, quando passam para um handler global.
  */
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -89,20 +82,5 @@ class ProjectController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id) {
         deleteProject.delete(new ProjectId(id), new UserId(user));
-    }
-
-    @ExceptionHandler(ProjectNotFoundException.class)
-    ProblemDetail handleNotFound(ProjectNotFoundException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-    }
-
-    @ExceptionHandler({NotProjectMemberException.class, BusinessRuleViolationException.class})
-    ProblemDetail handleForbidden(RuntimeException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
-    }
-
-    @ExceptionHandler(InvalidValueException.class)
-    ProblemDetail handleInvalid(InvalidValueException exception) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 }

@@ -35,7 +35,7 @@ class ProjectTest {
         project.addMember(ana, owner);
 
         assertThatThrownBy(() -> project.addMember(UserId.newId(), ana))
-                .isInstanceOf(BusinessRuleViolationException.class)
+                .isInstanceOf(ForbiddenOperationException.class)
                 .hasMessageContaining("Só o dono");
     }
 
