@@ -2,10 +2,14 @@ package dev.gustavo.moirai.application.service;
 
 import dev.gustavo.moirai.application.port.in.TaskUseCases.AssignTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.CreateTask;
+import dev.gustavo.moirai.application.port.in.TaskUseCases.ListTasks;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.MoveTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.NewTask;
 import dev.gustavo.moirai.application.port.out.ProjectRepository;
 import dev.gustavo.moirai.application.port.out.TaskRepository;
+import dev.gustavo.moirai.application.query.TaskQuery.Filter;
+import dev.gustavo.moirai.application.query.TaskQuery.Page;
+import dev.gustavo.moirai.application.query.TaskQuery.PageRequest;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.ProjectNotFoundException;
@@ -20,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Orquestra os casos de uso de tarefas. Quem decide se a operação é válida é o domínio. */
 @Service
-class TaskService implements CreateTask, MoveTask, AssignTask {
+class TaskService implements CreateTask, MoveTask, AssignTask, ListTasks {
 
     private final ProjectRepository projects;
     private final TaskRepository tasks;
@@ -57,6 +61,13 @@ class TaskService implements CreateTask, MoveTask, AssignTask {
         task.assignTo(assignee, actor, loadProject(task.projectId()));
         tasks.save(task);
         return task;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Task> list(ProjectId projectId, Filter filter, PageRequest page, UserId actor) {
+        loadProject(projectId).requireMember(actor);
+        return tasks.search(projectId, filter, page);
     }
 
     private Project loadProject(ProjectId id) {

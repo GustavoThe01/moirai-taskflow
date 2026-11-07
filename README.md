@@ -15,8 +15,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_05_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-73_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_06_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-85_passando-15803d?style=flat-square)
 
 </div>
 
@@ -121,13 +121,13 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | `POST` | `/api/v1/auth/register` | Cadastro de usuário | 11 |
 | `POST` | `/api/v1/auth/login` | Login, retorna access + refresh token | 12 |
 | `POST` | `/api/v1/auth/refresh` | Renova o access token | 12 |
-| `GET` | `/api/v1/projects` | Lista projetos do usuário (paginação no Dia 06) | ✅ 04 |
+| `GET` | `/api/v1/projects` | Lista projetos do usuário | ✅ 04 |
 | `POST` | `/api/v1/projects` | Cria projeto | ✅ 04 |
 | `GET` | `/api/v1/projects/{id}` | Detalhe do projeto | ✅ 04 |
 | `PUT` | `/api/v1/projects/{id}` | Renomeia o projeto (só o dono) | ✅ 04 |
 | `DELETE` | `/api/v1/projects/{id}` | Exclui o projeto (só o dono) | ✅ 04 |
 | `POST` | `/api/v1/projects/{id}/members` | Adiciona membro | 13 |
-| `GET` | `/api/v1/projects/{id}/tasks` | Lista tarefas com filtros | 06 |
+| `GET` | `/api/v1/projects/{id}/tasks` | Lista tarefas com filtros, ordenação e paginação | ✅ 06 |
 | `POST` | `/api/v1/projects/{id}/tasks` | Cria tarefa | ✅ 05 |
 | `PATCH` | `/api/v1/tasks/{id}/status` | Move a tarefa no fluxo | ✅ 05 |
 | `PATCH` | `/api/v1/tasks/{id}/assignee` | Atribui responsável | ✅ 05 |
@@ -276,7 +276,7 @@ stateDiagram-v2
 | Semana | Dias | Tema | Release | Progresso |
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
-| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | ⬜⬜⬜⬜⬜ |
+| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪⬜⬜⬜⬜ |
 | 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
@@ -327,10 +327,11 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 |---|---|---|
 | Contexto da aplicação | `@SpringBootTest` | ✅ 1 teste (contexto carrega) |
 | Domínio puro | JUnit + AssertJ, sem Spring | ✅ 38 testes (Task, Project, TaskStatus) |
-| Casos de uso | JUnit + Mockito, sem Spring | ✅ 11 testes |
-| API de ponta a ponta | `@SpringBootTest` + MockMvc + SQLite | ✅ 16 testes |
+| Casos de uso | JUnit + Mockito, sem Spring | ✅ 13 testes |
+| Tipos de consulta | JUnit, sem Spring (página, filtro, limites) | ✅ 6 testes |
+| API de ponta a ponta | `@SpringBootTest` + MockMvc + SQLite | ✅ 19 testes |
 | Controllers | `@WebMvcTest` + MockMvc | ⏳ Dia 08 |
-| Persistência | `@SpringBootTest` + SQLite real | ✅ 7 testes (migrations, mapeamento, chave estrangeira) |
+| Persistência | `@SpringBootTest` + SQLite real | ✅ 8 testes (migrations, mapeamento, chave estrangeira, busca paginada) |
 | Repositórios | `@DataJpaTest` | ⏳ Dia 08 |
 | Segurança | testes `401` × `403` | ⏳ Dia 13 |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
@@ -353,10 +354,11 @@ moirai-taskflow/
 │   ├── application/
 │   │   ├── port/in/                         # ✅ casos de uso de projetos e tarefas
 │   │   ├── port/out/                        # ✅ ProjectRepository, TaskRepository
+│   │   ├── query/                           # ✅ filtro, página e resultado, sem Spring Data
 │   │   └── service/                         # ✅ ProjectService, TaskService
 │   ├── adapter/
 │   │   ├── in/web/                          # ✅ controllers, DTOs e erros padronizados
-│   │   └── out/persistence/                 # ✅ entidades JPA, mapper, adapters
+│   │   └── out/persistence/                 # ✅ entidades JPA, mapper, adapters, Specifications
 │   └── config/                              # ✅ relógio · ⏳ Dia 11 — segurança, OpenAPI
 ├── src/main/resources/application.yml       # ✅ configuração, datasource e Actuator
 ├── src/main/resources/db/migration/         # ✅ migrations do Flyway
@@ -379,7 +381,8 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] JPA, Flyway, SQLite e adapter de persistência (Dia 03)
 - [x] Casos de uso e API de projetos (Dia 04)
 - [x] API de tarefas e erros padronizados com ProblemDetail (Dia 05) → `v0.1.0`
-- [ ] Paginação, filtros, OpenAPI e testes de camada (Dias 06–08)
+- [x] Paginação, filtros e ordenação com Specifications (Dia 06)
+- [ ] OpenAPI e testes de camada (Dias 07–08)
 - [ ] Labels, comentários, N+1 e auditoria (Dias 09–10) → `v0.2.0`
 - [ ] Usuários, JWT e autorização por recurso (Dias 11–13)
 - [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`

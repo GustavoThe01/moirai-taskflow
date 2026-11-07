@@ -11,7 +11,11 @@ import static org.mockito.Mockito.when;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.NewTask;
 import dev.gustavo.moirai.application.port.out.ProjectRepository;
 import dev.gustavo.moirai.application.port.out.TaskRepository;
+import dev.gustavo.moirai.application.query.TaskQuery.Filter;
+import dev.gustavo.moirai.application.query.TaskQuery.Page;
+import dev.gustavo.moirai.application.query.TaskQuery.PageRequest;
 import dev.gustavo.moirai.domain.InvalidTaskTransitionException;
+import dev.gustavo.moirai.domain.NotProjectMemberException;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.ProjectNotFoundException;
@@ -24,6 +28,7 @@ import dev.gustavo.moirai.domain.UserId;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -104,5 +109,23 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> service.move(missing, TaskStatus.IN_PROGRESS, owner))
                 .isInstanceOf(TaskNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("membro lista as tarefas pela porta de saída")
+    void listForMember() {
+        Page<Task> page = new Page<>(List.of(existingTask()), 0, 20, 1);
+        when(tasks.search(project.id(), Filter.NONE, PageRequest.first(20))).thenReturn(page);
+
+        assertThat(service.list(project.id(), Filter.NONE, PageRequest.first(20), ana)).isSameAs(page);
+    }
+
+    @Test
+    @DisplayName("quem não é membro não chega a consultar o banco")
+    void listForStranger() {
+        assertThatThrownBy(() -> service.list(project.id(), Filter.NONE, PageRequest.first(20), UserId.newId()))
+                .isInstanceOf(NotProjectMemberException.class);
+
+        verify(tasks, never()).search(any(), any(), any());
     }
 }

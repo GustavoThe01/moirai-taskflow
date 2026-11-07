@@ -1,8 +1,10 @@
 package dev.gustavo.moirai.adapter.in.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -167,5 +169,49 @@ class TaskApiIntegrationTest {
         moveTo(createTask(), owner, "ARQUIVADA")
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(PROBLEM));
+    }
+
+    private ResultActions listTasks(String user, String query) throws Exception {
+        return mvc.perform(get(projectPath + "/tasks" + query).header(USER, user));
+    }
+
+    @Test
+    @DisplayName("GET lista as tarefas do projeto com página, filtro e ordenação")
+    void listsTasks() throws Exception {
+        postTask(owner, "{\"title\": \"Bravo\", \"priority\": \"HIGH\", \"dueDate\": \"2099-03-01\"}");
+        postTask(owner, "{\"title\": \"Alfa\", \"priority\": \"LOW\", \"dueDate\": \"2099-01-01\"}");
+        postTask(owner, "{\"title\": \"Charlie\", \"priority\": \"HIGH\", \"dueDate\": \"2099-02-01\"}");
+
+        listTasks(owner, "?size=2&sort=title")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[*].title", contains("Alfa", "Bravo")))
+                .andExpect(jsonPath("$.totalItems").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.hasNext").value(true));
+
+        listTasks(owner, "?priority=HIGH&sort=dueDate,desc")
+                .andExpect(jsonPath("$.items[*].title", contains("Bravo", "Charlie")));
+
+        listTasks(owner, "?dueTo=2099-01-31")
+                .andExpect(jsonPath("$.items[*].title", contains("Alfa")));
+    }
+
+    @Test
+    @DisplayName("parâmetros de listagem inválidos devolvem 400 com ProblemDetail")
+    void invalidListParameters() throws Exception {
+        listTasks(owner, "?sort=priority")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("/problems/invalid-value"));
+        listTasks(owner, "?size=500").andExpect(status().isBadRequest());
+        listTasks(owner, "?sort=title,sideways").andExpect(status().isBadRequest());
+        listTasks(owner, "?status=ARQUIVADA")
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(PROBLEM));
+    }
+
+    @Test
+    @DisplayName("quem não é membro não lista as tarefas")
+    void strangerCannotList() throws Exception {
+        listTasks(stranger, "").andExpect(status().isForbidden());
     }
 }
