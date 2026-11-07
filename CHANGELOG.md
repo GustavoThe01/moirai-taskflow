@@ -3,6 +3,15 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Adicionado
+- `GET /api/v1/projects/{id}/tasks`: lista as tarefas do projeto com paginação, ordenação (`createdAt`, `dueDate`, `title`) e filtros por status, prioridade, responsável e intervalo de prazo.
+- Filtros montados com Specifications do Spring Data JPA; só os filtros preenchidos entram na consulta.
+- Tipos de consulta (`TaskQuery`) na camada de aplicação, sem dependência do Spring Data: o adapter traduz para `Pageable`.
+- Migration `V2` com índices compostos para a listagem por projeto.
+- 12 testes novos.
+
 ## [0.1.0] - 2026-11-06
 
 ### Adicionado

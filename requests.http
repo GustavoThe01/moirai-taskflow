@@ -55,6 +55,18 @@ X-User-Id: {{user}}
   "dueDate": "2099-12-31"
 }
 
+### Listar tarefas: segunda página, só as de prioridade alta, prazo mais próximo primeiro
+GET {{baseUrl}}/projects/{{projectId}}/tasks?priority=HIGH&sort=dueDate&page=1&size=10
+X-User-Id: {{user}}
+
+### Listar tarefas de um responsável com prazo até o fim do ano
+GET {{baseUrl}}/projects/{{projectId}}/tasks?assigneeId={{user}}&dueTo=2099-12-31&sort=title,desc
+X-User-Id: {{user}}
+
+### Ordenação desconhecida: 400
+GET {{baseUrl}}/projects/{{projectId}}/tasks?sort=priority
+X-User-Id: {{user}}
+
 ### Atribuir responsável
 PATCH {{baseUrl}}/tasks/{{taskId}}/assignee
 Content-Type: application/json

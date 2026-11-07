@@ -32,7 +32,7 @@
 ## Semana 2 — API madura  → `v0.2.0`
 
 ### Dia 06 — Paginação e filtros
-- [ ] `Pageable`, ordenação, filtros dinâmicos (status, responsável, prazo) com Specifications
+- [x] `Pageable`, ordenação, filtros dinâmicos (status, responsável, prazo) com Specifications
 
 ### Dia 07 — Documentação
 - [ ] springdoc-openapi (Swagger UI) com exemplos e descrições

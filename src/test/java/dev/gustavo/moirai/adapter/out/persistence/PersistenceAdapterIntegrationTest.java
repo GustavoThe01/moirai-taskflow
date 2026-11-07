@@ -5,6 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.gustavo.moirai.application.port.out.ProjectRepository;
 import dev.gustavo.moirai.application.port.out.TaskRepository;
+import dev.gustavo.moirai.application.query.TaskQuery.Filter;
+import dev.gustavo.moirai.application.query.TaskQuery.Page;
+import dev.gustavo.moirai.application.query.TaskQuery.PageRequest;
+import dev.gustavo.moirai.application.query.TaskQuery.SortField;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.Task;
@@ -136,5 +140,39 @@ class PersistenceAdapterIntegrationTest {
         assertThatThrownBy(() -> tasks.save(task))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("FOREIGN KEY");
+    }
+
+    @Test
+    @DisplayName("a busca combina filtros, ordena pelo prazo e pagina com o total certo")
+    void searchWithFiltersAndPaging() {
+        Project project = savedProject();
+        Project other = savedProject();
+        Task late = Task.create(project, owner, "Prazo longo", null, TaskPriority.HIGH, TODAY.plusDays(30), CLOCK);
+        Task soon = Task.create(project, owner, "Prazo curto", null, TaskPriority.HIGH, TODAY.plusDays(1), CLOCK);
+        Task middle = Task.create(project, owner, "Prazo médio", null, TaskPriority.LOW, TODAY.plusDays(10), CLOCK);
+        Task assigned = Task.create(project, owner, "Da Ana", null, TaskPriority.HIGH, TODAY.plusDays(5), CLOCK);
+        assigned.assignTo(ana, owner, project);
+        Task foreign = Task.create(other, owner, "De outro projeto", null, TaskPriority.HIGH, TODAY.plusDays(2), CLOCK);
+        for (Task task : new Task[] {late, soon, middle, assigned, foreign}) {
+            tasks.save(task);
+        }
+        PageRequest byDueDate = new PageRequest(0, 2, SortField.DUE_DATE, true);
+
+        Page<Task> first = tasks.search(project.id(), Filter.NONE, byDueDate);
+        Page<Task> second = tasks.search(project.id(), Filter.NONE, new PageRequest(1, 2, SortField.DUE_DATE, true));
+        Page<Task> highUntilDay10 = tasks.search(project.id(),
+                new Filter(null, TaskPriority.HIGH, null, TODAY, TODAY.plusDays(10)), byDueDate);
+        Page<Task> anas = tasks.search(project.id(), new Filter(TaskStatus.TODO, null, ana, null, null), byDueDate);
+        Page<Task> titlesDesc = tasks.search(project.id(), Filter.NONE, new PageRequest(0, 4, SortField.TITLE, false));
+
+        assertThat(first.items()).containsExactly(soon, assigned);
+        assertThat(first.totalItems()).isEqualTo(4);
+        assertThat(first.totalPages()).isEqualTo(2);
+        assertThat(second.items()).containsExactly(middle, late);
+        assertThat(second.hasNext()).isFalse();
+        assertThat(highUntilDay10.items()).containsExactly(soon, assigned);
+        assertThat(anas.items()).containsExactly(assigned);
+        assertThat(titlesDesc.items()).extracting(Task::title)
+                .containsExactly("Prazo médio", "Prazo longo", "Prazo curto", "Da Ana");
     }
 }
