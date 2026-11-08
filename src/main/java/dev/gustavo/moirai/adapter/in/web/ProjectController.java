@@ -11,6 +11,9 @@ import dev.gustavo.moirai.application.port.in.ProjectUseCases.RenameProject;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.UserId;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -35,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/projects")
+@Tag(name = "Projetos")
 class ProjectController {
 
     private static final String USER_HEADER = "X-User-Id";
@@ -55,6 +59,9 @@ class ProjectController {
     }
 
     @PostMapping
+    @Operation(summary = "Cria um projeto", description = "Quem cria vira dono e primeiro membro do projeto.")
+    @ApiResponse(responseCode = "201", description = "Projeto criado; o cabeçalho Location aponta para ele")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
     ResponseEntity<ProjectResponse> create(@RequestHeader(USER_HEADER) UUID user,
                                            @Valid @RequestBody CreateProjectRequest request) {
         Project project = createProject.create(request.name(), new UserId(user));
@@ -63,16 +70,27 @@ class ProjectController {
     }
 
     @GetMapping
+    @Operation(summary = "Lista os projetos de que o usuário é membro")
+    @ApiResponse(responseCode = "200", description = "Projetos do usuário, ordenados pelo nome")
     List<ProjectResponse> list(@RequestHeader(USER_HEADER) UUID user) {
         return listProjects.listFor(new UserId(user)).stream().map(ProjectResponse::from).toList();
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Detalha um projeto", description = "Só membros do projeto podem vê-lo.")
+    @ApiResponse(responseCode = "200", description = "Projeto encontrado")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
     ProjectResponse get(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id) {
         return ProjectResponse.from(getProject.get(new ProjectId(id), new UserId(user)));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Renomeia um projeto", description = "Só o dono pode renomear.")
+    @ApiResponse(responseCode = "200", description = "Projeto com o nome novo")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
     ProjectResponse rename(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
                            @Valid @RequestBody RenameProjectRequest request) {
         return ProjectResponse.from(renameProject.rename(new ProjectId(id), request.name(), new UserId(user)));
@@ -80,6 +98,10 @@ class ProjectController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Exclui um projeto", description = "Só o dono pode excluir. As tarefas do projeto vão junto.")
+    @ApiResponse(responseCode = "204", description = "Projeto excluído")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
     void delete(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id) {
         deleteProject.delete(new ProjectId(id), new UserId(user));
     }

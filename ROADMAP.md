@@ -35,7 +35,7 @@
 - [x] `Pageable`, ordenação, filtros dinâmicos (status, responsável, prazo) com Specifications
 
 ### Dia 07 — Documentação
-- [ ] springdoc-openapi (Swagger UI) com exemplos e descrições
+- [x] springdoc-openapi (Swagger UI) com exemplos e descrições
 
 ### Dia 08 — Testes de camada
 - [ ] `@WebMvcTest` (controllers), `@DataJpaTest` (repositórios)
