@@ -23,7 +23,20 @@ management:
     health:
       show-details: never
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+  default-produces-media-type: application/json
+  # Os erros são documentados por endpoint (components/responses), e não copiados do @RestControllerAdvice para todos.
+  override-with-generic-response: false
+
 info:
   app:
     name: Moirai Taskflow
+    version: "@project.version@"
     description: As Moiras tecem, medem e cortam o fio de cada tarefa.

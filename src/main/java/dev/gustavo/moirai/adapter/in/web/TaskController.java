@@ -16,6 +16,11 @@ import dev.gustavo.moirai.domain.TaskId;
 import dev.gustavo.moirai.domain.TaskPriority;
 import dev.gustavo.moirai.domain.TaskStatus;
 import dev.gustavo.moirai.domain.UserId;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -40,6 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** API de tarefas. O usuário vem do cabeçalho {@code X-User-Id} apenas até o Dia 12. */
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Tarefas")
 class TaskController {
 
     private static final String USER_HEADER = "X-User-Id";
@@ -57,16 +63,18 @@ class TaskController {
     }
 
     record CreateTaskRequest(
-            @NotBlank @Size(min = 3, max = 120) String title,
-            @Size(max = 2000) String description,
-            @NotNull TaskPriority priority,
-            LocalDate dueDate) {
+            @Schema(example = "Escrever os testes da API") @NotBlank @Size(min = 3, max = 120) String title,
+            @Schema(example = "Cobrir os casos de erro com ProblemDetail") @Size(max = 2000) String description,
+            @Schema(example = "HIGH") @NotNull TaskPriority priority,
+            @Schema(description = "Prazo; não pode estar no passado", example = "2099-12-31") LocalDate dueDate) {
     }
 
-    record MoveTaskRequest(@NotNull TaskStatus status) {
+    record MoveTaskRequest(
+            @Schema(description = "Status de destino no fluxo TODO → IN_PROGRESS → REVIEW → DONE", example = "IN_PROGRESS")
+            @NotNull TaskStatus status) {
     }
 
-    record AssignTaskRequest(@NotNull UUID assigneeId) {
+    record AssignTaskRequest(@Schema(description = "Membro do projeto que vai assumir a tarefa") @NotNull UUID assigneeId) {
     }
 
     record TaskResponse(UUID id, UUID projectId, String title, String description, TaskPriority priority,
@@ -87,6 +95,7 @@ class TaskController {
         }
     }
 
+    @Schema(description = "Uma página de resultados; a primeira página é a 0")
     record PageResponse<T>(List<T> items, int page, int size, long totalItems, int totalPages, boolean hasNext) {
 
         static <T> PageResponse<T> from(Page<T> page) {
@@ -100,14 +109,29 @@ class TaskController {
      * A ordenação segue o formato {@code campo} ou {@code campo,desc}, com campo em createdAt, dueDate ou title.
      */
     @GetMapping("/projects/{projectId}/tasks")
+    @Operation(summary = "Lista as tarefas do projeto",
+            description = "Filtros opcionais e combináveis. Só membros do projeto podem listar.")
+    @ApiResponse(responseCode = "200", description = "Página de tarefas")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
     PageResponse<TaskResponse> list(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID projectId,
+                                    @Parameter(description = "Só as tarefas neste status")
                                     @RequestParam(required = false) TaskStatus status,
+                                    @Parameter(description = "Só as tarefas com esta prioridade")
                                     @RequestParam(required = false) TaskPriority priority,
+                                    @Parameter(description = "Só as tarefas deste responsável")
                                     @RequestParam(required = false) UUID assigneeId,
+                                    @Parameter(description = "Prazo a partir desta data (inclusive)", example = "2026-11-01")
                                     @RequestParam(required = false) LocalDate dueFrom,
+                                    @Parameter(description = "Prazo até esta data (inclusive)", example = "2026-12-31")
                                     @RequestParam(required = false) LocalDate dueTo,
+                                    @Parameter(description = "Página, começando em 0")
                                     @RequestParam(defaultValue = "0") int page,
+                                    @Parameter(description = "Itens por página, de 1 a 100")
                                     @RequestParam(defaultValue = "20") int size,
+                                    @Parameter(description = "createdAt, dueDate ou title; acrescente ,desc para inverter",
+                                            example = "dueDate,desc")
                                     @RequestParam(defaultValue = "createdAt") String sort) {
         Filter filter = new Filter(status, priority, assigneeId == null ? null : new UserId(assigneeId), dueFrom, dueTo);
         PageRequest request = pageRequest(page, size, sort);
@@ -137,6 +161,11 @@ class TaskController {
     }
 
     @PostMapping("/projects/{projectId}/tasks")
+    @Operation(summary = "Cria uma tarefa", description = "A tarefa nasce em TODO e sem responsável.")
+    @ApiResponse(responseCode = "201", description = "Tarefa criada; o cabeçalho Location aponta para ela")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
     ResponseEntity<TaskResponse> create(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID projectId,
                                         @Valid @RequestBody CreateTaskRequest request) {
         NewTask newTask = new NewTask(request.title(), request.description(), request.priority(), request.dueDate());
@@ -145,12 +174,24 @@ class TaskController {
     }
 
     @PatchMapping("/tasks/{id}/status")
+    @Operation(summary = "Move a tarefa no fluxo",
+            description = "Avança uma etapa por vez e pode voltar uma etapa antes de DONE. Iniciar exige responsável.")
+    @ApiResponse(responseCode = "200", description = "Tarefa no status novo")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
+    @ApiResponse(responseCode = "422", ref = "UnprocessableContent")
     TaskResponse move(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
                       @Valid @RequestBody MoveTaskRequest request) {
         return TaskResponse.from(moveTask.move(new TaskId(id), request.status(), new UserId(user)));
     }
 
     @PatchMapping("/tasks/{id}/assignee")
+    @Operation(summary = "Atribui um responsável", description = "O responsável precisa ser membro do projeto.")
+    @ApiResponse(responseCode = "200", description = "Tarefa com o responsável novo")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
     TaskResponse assign(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
                         @Valid @RequestBody AssignTaskRequest request) {
         return TaskResponse.from(assignTask.assign(new TaskId(id), new UserId(request.assigneeId()), new UserId(user)));

@@ -11,6 +11,10 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - Tipos de consulta (`TaskQuery`) na camada de aplicação, sem dependência do Spring Data: o adapter traduz para `Pageable`.
 - Migration `V2` com índices compostos para a listagem por projeto.
 - 12 testes novos.
+- Documentação OpenAPI com springdoc 3.2: Swagger UI em `/swagger-ui.html` e contrato em `/v3/api-docs`.
+- Cada endpoint com resumo, descrição, exemplos e os erros possíveis; as respostas de erro ProblemDetail são definidas uma vez em `components/responses`.
+- Descrição automática do cabeçalho provisório `X-User-Id` em todas as operações.
+- 5 testes que conferem o contrato publicado.
 
 ## [0.1.0] - 2026-11-06
 
