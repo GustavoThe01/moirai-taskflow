@@ -38,8 +38,8 @@
 - [x] springdoc-openapi (Swagger UI) com exemplos e descrições
 
 ### Dia 08 — Testes de camada
-- [ ] `@WebMvcTest` (controllers), `@DataJpaTest` (repositórios)
-- [ ] Testes de integração `@SpringBootTest` + MockMvc
+- [x] `@WebMvcTest` (controllers), `@DataJpaTest` (repositórios)
+- [x] Testes de integração `@SpringBootTest` + MockMvc
 
 ### Dia 09 — Comentários e labels
 - [ ] Relacionamento N:N (task ↔ label), comentários
