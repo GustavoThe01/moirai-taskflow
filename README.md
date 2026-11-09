@@ -15,8 +15,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_07_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-90_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_08_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-102_passando-15803d?style=flat-square)
 
 </div>
 
@@ -276,7 +276,7 @@ stateDiagram-v2
 | Semana | Dias | Tema | Release | Progresso |
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
-| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪⬜⬜⬜ |
+| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪⬜⬜ |
 | 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
@@ -331,9 +331,9 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 | Tipos de consulta | JUnit, sem Spring (página, filtro, limites) | ✅ 6 testes |
 | API de ponta a ponta | `@SpringBootTest` + MockMvc + SQLite | ✅ 19 testes |
 | Contrato OpenAPI | O documento publicado tem os endpoints, os erros e os exemplos | ✅ 5 testes |
-| Controllers | `@WebMvcTest` + MockMvc | ⏳ Dia 08 |
+| Controllers | `@WebMvcTest` + MockMvc, casos de uso simulados com `@MockitoBean` | ✅ 9 testes |
 | Persistência | `@SpringBootTest` + SQLite real | ✅ 8 testes (migrations, mapeamento, chave estrangeira, busca paginada) |
-| Repositórios | `@DataJpaTest` | ⏳ Dia 08 |
+| Repositórios | `@DataJpaTest` com o SQLite e as migrations reais | ✅ 3 testes |
 | Segurança | testes `401` × `403` | ⏳ Dia 13 |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
 | Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
@@ -384,7 +384,7 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] API de tarefas e erros padronizados com ProblemDetail (Dia 05) → `v0.1.0`
 - [x] Paginação, filtros e ordenação com Specifications (Dia 06)
 - [x] OpenAPI com springdoc e Swagger UI (Dia 07)
-- [ ] Testes de camada com `@WebMvcTest` e `@DataJpaTest` (Dia 08)
+- [x] Testes de camada com `@WebMvcTest` e `@DataJpaTest` (Dia 08)
 - [ ] Labels, comentários, N+1 e auditoria (Dias 09–10) → `v0.2.0`
 - [ ] Usuários, JWT e autorização por recurso (Dias 11–13)
 - [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`

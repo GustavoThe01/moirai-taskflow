@@ -15,6 +15,10 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - Cada endpoint com resumo, descrição, exemplos e os erros possíveis; as respostas de erro ProblemDetail são definidas uma vez em `components/responses`.
 - Descrição automática do cabeçalho provisório `X-User-Id` em todas as operações.
 - 5 testes que conferem o contrato publicado.
+- Testes de fatia web (`@WebMvcTest`) para os controllers de projetos e tarefas: rota, validação, conversão de parâmetros e status de erro, com os casos de uso simulados por `@MockitoBean`.
+- Testes de fatia JPA (`@DataJpaTest`) com o SQLite e as migrations reais: consulta JPQL de membros, Specifications combinadas e índices do Flyway.
+- Dependência `spring-boot-starter-data-jpa-test` (no Spring Boot 4, cada fatia de teste tem o próprio módulo).
+- 12 testes novos.
 
 ## [0.1.0] - 2026-11-06
 
