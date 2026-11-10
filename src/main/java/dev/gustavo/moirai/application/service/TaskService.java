@@ -5,11 +5,16 @@ import dev.gustavo.moirai.application.port.in.TaskUseCases.CreateTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.ListTasks;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.MoveTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.NewTask;
+import dev.gustavo.moirai.application.port.in.TaskUseCases.RelabelTask;
+import dev.gustavo.moirai.application.port.out.LabelRepository;
 import dev.gustavo.moirai.application.port.out.ProjectRepository;
 import dev.gustavo.moirai.application.port.out.TaskRepository;
 import dev.gustavo.moirai.application.query.TaskQuery.Filter;
 import dev.gustavo.moirai.application.query.TaskQuery.Page;
 import dev.gustavo.moirai.application.query.TaskQuery.PageRequest;
+import dev.gustavo.moirai.domain.InvalidValueException;
+import dev.gustavo.moirai.domain.Label;
+import dev.gustavo.moirai.domain.LabelId;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.ProjectNotFoundException;
@@ -19,20 +24,24 @@ import dev.gustavo.moirai.domain.TaskNotFoundException;
 import dev.gustavo.moirai.domain.TaskStatus;
 import dev.gustavo.moirai.domain.UserId;
 import java.time.Clock;
+import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Orquestra os casos de uso de tarefas. Quem decide se a operação é válida é o domínio. */
 @Service
-class TaskService implements CreateTask, MoveTask, AssignTask, ListTasks {
+class TaskService implements CreateTask, MoveTask, AssignTask, ListTasks, RelabelTask {
 
     private final ProjectRepository projects;
     private final TaskRepository tasks;
+    private final LabelRepository labels;
     private final Clock clock;
 
-    TaskService(ProjectRepository projects, TaskRepository tasks, Clock clock) {
+    TaskService(ProjectRepository projects, TaskRepository tasks, LabelRepository labels, Clock clock) {
         this.projects = projects;
         this.tasks = tasks;
+        this.labels = labels;
         this.clock = clock;
     }
 
@@ -59,6 +68,19 @@ class TaskService implements CreateTask, MoveTask, AssignTask, ListTasks {
     public Task assign(TaskId id, UserId assignee, UserId actor) {
         Task task = loadTask(id);
         task.assignTo(assignee, actor, loadProject(task.projectId()));
+        tasks.save(task);
+        return task;
+    }
+
+    @Override
+    @Transactional
+    public Task relabel(TaskId id, Set<LabelId> labelIds, UserId actor) {
+        Task task = loadTask(id);
+        List<Label> found = labels.findAllById(labelIds);
+        if (found.size() != labelIds.size()) {
+            throw new InvalidValueException("Uma ou mais etiquetas informadas não existem.");
+        }
+        task.relabel(found, actor, loadProject(task.projectId()));
         tasks.save(task);
         return task;
     }

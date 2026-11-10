@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.gustavo.moirai.application.port.in.TaskUseCases.NewTask;
+import dev.gustavo.moirai.application.port.out.LabelRepository;
 import dev.gustavo.moirai.application.port.out.ProjectRepository;
 import dev.gustavo.moirai.application.port.out.TaskRepository;
 import dev.gustavo.moirai.application.query.TaskQuery.Filter;
@@ -42,7 +43,8 @@ class TaskServiceTest {
 
     private final ProjectRepository projects = mock(ProjectRepository.class);
     private final TaskRepository tasks = mock(TaskRepository.class);
-    private final TaskService service = new TaskService(projects, tasks, CLOCK);
+    private final LabelRepository labels = mock(LabelRepository.class);
+    private final TaskService service = new TaskService(projects, tasks, labels, CLOCK);
     private final UserId owner = UserId.newId();
     private final UserId ana = UserId.newId();
     private Project project;

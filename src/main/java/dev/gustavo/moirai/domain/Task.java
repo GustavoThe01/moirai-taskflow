@@ -3,8 +3,11 @@ package dev.gustavo.moirai.domain;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Tarefa de um projeto. Guarda o fio que as Moiras tecem: de TODO até DONE.
@@ -16,7 +19,8 @@ import java.util.Optional;
  *   <li>uma tarefa só sai de TODO para IN_PROGRESS se tiver responsável;</li>
  *   <li>só o responsável envia a tarefa para REVIEW;</li>
  *   <li>o prazo, quando existe, não pode estar no passado;</li>
- *   <li>tarefa em DONE não muda mais.</li>
+ *   <li>tarefa em DONE não muda mais;</li>
+ *   <li>etiquetas só do mesmo projeto, no máximo {@value #MAX_LABELS} por tarefa.</li>
  * </ul>
  *
  * <p>O {@link Clock} é recebido por parâmetro para que as regras de data sejam testáveis
@@ -26,6 +30,7 @@ public final class Task {
 
     private static final int TITLE_MIN_LENGTH = 3;
     private static final int TITLE_MAX_LENGTH = 120;
+    static final int MAX_LABELS = 10;
 
     private final TaskId id;
     private final ProjectId projectId;
@@ -37,6 +42,7 @@ public final class Task {
     private LocalDate dueDate;
     private TaskStatus status;
     private UserId assigneeId;
+    private Set<LabelId> labels = Set.of();
 
     private Task(TaskId id, ProjectId projectId, UserId createdBy, Instant createdAt,
                  String title, String description, TaskPriority priority, LocalDate dueDate) {
@@ -72,6 +78,32 @@ public final class Task {
         task.status = Objects.requireNonNull(status, "status");
         task.assigneeId = assigneeId;
         return task;
+    }
+
+    /** Como {@link #restore(TaskId, ProjectId, UserId, Instant, String, String, TaskPriority, LocalDate, TaskStatus, UserId)}, com as etiquetas. */
+    public static Task restore(TaskId id, ProjectId projectId, UserId createdBy, Instant createdAt,
+                               String title, String description, TaskPriority priority, LocalDate dueDate,
+                               TaskStatus status, UserId assigneeId, Set<LabelId> labels) {
+        Task task = restore(id, projectId, createdBy, createdAt, title, description, priority, dueDate, status, assigneeId);
+        task.labels = Set.copyOf(labels);
+        return task;
+    }
+
+    /** Troca o conjunto de etiquetas da tarefa. Lista vazia remove todas. */
+    public void relabel(Collection<Label> newLabels, UserId actor, Project project) {
+        Objects.requireNonNull(newLabels, "newLabels");
+        requireSameProject(project);
+        requireNotDone();
+        project.requireMember(actor);
+        if (newLabels.size() > MAX_LABELS) {
+            throw new BusinessRuleViolationException("Uma tarefa tem no máximo %d etiquetas.".formatted(MAX_LABELS));
+        }
+        for (Label label : newLabels) {
+            if (!label.projectId().equals(projectId)) {
+                throw new BusinessRuleViolationException("A etiqueta %s é de outro projeto.".formatted(label.name()));
+            }
+        }
+        labels = newLabels.stream().map(Label::id).collect(Collectors.toUnmodifiableSet());
     }
 
     public void assignTo(UserId assignee, UserId actor, Project project) {
@@ -152,6 +184,10 @@ public final class Task {
 
     public Optional<UserId> assigneeId() {
         return Optional.ofNullable(assigneeId);
+    }
+
+    public Set<LabelId> labels() {
+        return labels;
     }
 
     private void requireSameProject(Project project) {

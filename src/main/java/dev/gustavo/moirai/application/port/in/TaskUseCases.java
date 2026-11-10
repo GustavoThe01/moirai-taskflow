@@ -3,6 +3,7 @@ package dev.gustavo.moirai.application.port.in;
 import dev.gustavo.moirai.application.query.TaskQuery.Filter;
 import dev.gustavo.moirai.application.query.TaskQuery.Page;
 import dev.gustavo.moirai.application.query.TaskQuery.PageRequest;
+import dev.gustavo.moirai.domain.LabelId;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.Task;
 import dev.gustavo.moirai.domain.TaskId;
@@ -10,6 +11,7 @@ import dev.gustavo.moirai.domain.TaskPriority;
 import dev.gustavo.moirai.domain.TaskStatus;
 import dev.gustavo.moirai.domain.UserId;
 import java.time.LocalDate;
+import java.util.Set;
 
 /** Portas de entrada: o que o mundo externo pode pedir à aplicação sobre tarefas. */
 public final class TaskUseCases {
@@ -30,6 +32,11 @@ public final class TaskUseCases {
 
     public interface AssignTask {
         Task assign(TaskId id, UserId assignee, UserId actor);
+    }
+
+    public interface RelabelTask {
+        /** Troca as etiquetas da tarefa pelas informadas. Conjunto vazio remove todas. */
+        Task relabel(TaskId id, Set<LabelId> labels, UserId actor);
     }
 
     public interface ListTasks {

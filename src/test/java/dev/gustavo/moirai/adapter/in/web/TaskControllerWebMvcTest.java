@@ -19,6 +19,7 @@ import dev.gustavo.moirai.application.port.in.TaskUseCases.CreateTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.ListTasks;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.MoveTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.NewTask;
+import dev.gustavo.moirai.application.port.in.TaskUseCases.RelabelTask;
 import dev.gustavo.moirai.application.query.TaskQuery.Filter;
 import dev.gustavo.moirai.application.query.TaskQuery.Page;
 import dev.gustavo.moirai.application.query.TaskQuery.PageRequest;
@@ -72,6 +73,9 @@ class TaskControllerWebMvcTest {
 
     @MockitoBean
     private ListTasks listTasks;
+
+    @MockitoBean
+    private RelabelTask relabelTask;
 
     private final UserId owner = UserId.newId();
     private final Project project = Project.create("Moirai", owner);

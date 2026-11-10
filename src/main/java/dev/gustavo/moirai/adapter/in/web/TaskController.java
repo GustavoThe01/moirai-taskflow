@@ -5,11 +5,13 @@ import dev.gustavo.moirai.application.port.in.TaskUseCases.CreateTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.ListTasks;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.MoveTask;
 import dev.gustavo.moirai.application.port.in.TaskUseCases.NewTask;
+import dev.gustavo.moirai.application.port.in.TaskUseCases.RelabelTask;
 import dev.gustavo.moirai.application.query.TaskQuery.Filter;
 import dev.gustavo.moirai.application.query.TaskQuery.Page;
 import dev.gustavo.moirai.application.query.TaskQuery.PageRequest;
 import dev.gustavo.moirai.application.query.TaskQuery.SortField;
 import dev.gustavo.moirai.domain.InvalidValueException;
+import dev.gustavo.moirai.domain.LabelId;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.Task;
 import dev.gustavo.moirai.domain.TaskId;
@@ -30,12 +32,15 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,12 +59,15 @@ class TaskController {
     private final MoveTask moveTask;
     private final AssignTask assignTask;
     private final ListTasks listTasks;
+    private final RelabelTask relabelTask;
 
-    TaskController(CreateTask createTask, MoveTask moveTask, AssignTask assignTask, ListTasks listTasks) {
+    TaskController(CreateTask createTask, MoveTask moveTask, AssignTask assignTask, ListTasks listTasks,
+                   RelabelTask relabelTask) {
         this.createTask = createTask;
         this.moveTask = moveTask;
         this.assignTask = assignTask;
         this.listTasks = listTasks;
+        this.relabelTask = relabelTask;
     }
 
     record CreateTaskRequest(
@@ -74,11 +82,16 @@ class TaskController {
             @NotNull TaskStatus status) {
     }
 
+    record RelabelTaskRequest(
+            @Schema(description = "Etiquetas do projeto; lista vazia remove todas") @NotNull @Size(max = 10) Set<UUID> labelIds) {
+    }
+
     record AssignTaskRequest(@Schema(description = "Membro do projeto que vai assumir a tarefa") @NotNull UUID assigneeId) {
     }
 
     record TaskResponse(UUID id, UUID projectId, String title, String description, TaskPriority priority,
-                        TaskStatus status, LocalDate dueDate, UUID assigneeId, UUID createdBy, Instant createdAt) {
+                        TaskStatus status, LocalDate dueDate, UUID assigneeId, UUID createdBy, Instant createdAt,
+                        Set<UUID> labelIds) {
 
         static TaskResponse from(Task task) {
             return new TaskResponse(
@@ -91,7 +104,8 @@ class TaskController {
                     task.dueDate().orElse(null),
                     task.assigneeId().map(UserId::value).orElse(null),
                     task.createdBy().value(),
-                    task.createdAt());
+                    task.createdAt(),
+                    task.labels().stream().map(LabelId::value).collect(Collectors.toSet()));
         }
     }
 
@@ -184,6 +198,20 @@ class TaskController {
     TaskResponse move(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
                       @Valid @RequestBody MoveTaskRequest request) {
         return TaskResponse.from(moveTask.move(new TaskId(id), request.status(), new UserId(user)));
+    }
+
+    @PutMapping("/tasks/{id}/labels")
+    @Operation(summary = "Troca as etiquetas da tarefa",
+            description = "Substitui o conjunto inteiro. As etiquetas precisam ser do mesmo projeto, no máximo 10.")
+    @ApiResponse(responseCode = "200", description = "Tarefa com as etiquetas novas")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
+    @ApiResponse(responseCode = "422", ref = "UnprocessableContent")
+    TaskResponse relabel(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
+                         @Valid @RequestBody RelabelTaskRequest request) {
+        Set<LabelId> labels = request.labelIds().stream().map(LabelId::new).collect(Collectors.toSet());
+        return TaskResponse.from(relabelTask.relabel(new TaskId(id), labels, new UserId(user)));
     }
 
     @PatchMapping("/tasks/{id}/assignee")

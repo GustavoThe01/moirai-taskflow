@@ -19,6 +19,12 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - Testes de fatia JPA (`@DataJpaTest`) com o SQLite e as migrations reais: consulta JPQL de membros, Specifications combinadas e índices do Flyway.
 - Dependência `spring-boot-starter-data-jpa-test` (no Spring Boot 4, cada fatia de teste tem o próprio módulo).
 - 12 testes novos.
+- Etiquetas por projeto (`Label`), com nome único sem diferenciar maiúsculas e cor `#RRGGBB`, e a relação N:N com tarefas em `task_label`.
+- `PUT /api/v1/tasks/{id}/labels`: troca as etiquetas da tarefa, só do mesmo projeto e no máximo 10.
+- Comentários imutáveis nas tarefas (`POST` e `GET /api/v1/tasks/{id}/comments`), só de membros do projeto.
+- Migration `V3` com `label`, `task_label` e `comment`, chaves estrangeiras em cascata e índices.
+- Correção de dois N+1, medidos antes e depois pelas estatísticas do Hibernate: tarefas com etiquetas (22 → 3 comandos, com `@BatchSize`) e projetos com membros (16 → 1, com `@EntityGraph`).
+- 15 testes novos.
 
 ## [0.1.0] - 2026-11-06
 

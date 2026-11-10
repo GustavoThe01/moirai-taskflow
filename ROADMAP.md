@@ -42,8 +42,8 @@
 - [x] Testes de integração `@SpringBootTest` + MockMvc
 
 ### Dia 09 — Comentários e labels
-- [ ] Relacionamento N:N (task ↔ label), comentários
-- [ ] Detectar e corrigir **N+1** (`@EntityGraph` / fetch join); registrar no README
+- [x] Relacionamento N:N (task ↔ label), comentários
+- [x] Detectar e corrigir **N+1** (`@EntityGraph` / fetch join); registrar no README
 
 ### Dia 10 — Auditoria
 - [ ] JPA Auditing (`createdAt`, `updatedBy`), soft delete
