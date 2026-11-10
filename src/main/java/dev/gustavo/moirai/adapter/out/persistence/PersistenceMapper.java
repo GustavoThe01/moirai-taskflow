@@ -1,5 +1,6 @@
 package dev.gustavo.moirai.adapter.out.persistence;
 
+import dev.gustavo.moirai.domain.LabelId;
 import dev.gustavo.moirai.domain.Project;
 import dev.gustavo.moirai.domain.ProjectId;
 import dev.gustavo.moirai.domain.Task;
@@ -45,7 +46,8 @@ final class PersistenceMapper {
                 task.priority().name(),
                 task.dueDate().map(LocalDate::toString).orElse(null),
                 task.status().name(),
-                task.assigneeId().map(UserId::toString).orElse(null));
+                task.assigneeId().map(UserId::toString).orElse(null),
+                task.labels().stream().map(LabelId::toString).collect(Collectors.toSet()));
     }
 
     static Task toDomain(TaskJpaEntity entity) {
@@ -59,7 +61,8 @@ final class PersistenceMapper {
                 TaskPriority.valueOf(entity.getPriority()),
                 entity.getDueDate() == null ? null : LocalDate.parse(entity.getDueDate()),
                 TaskStatus.valueOf(entity.getStatus()),
-                entity.getAssigneeId() == null ? null : userId(entity.getAssigneeId()));
+                entity.getAssigneeId() == null ? null : userId(entity.getAssigneeId()),
+                entity.getLabels().stream().map(id -> new LabelId(UUID.fromString(id))).collect(Collectors.toSet()));
     }
 
     private static UserId userId(String value) {

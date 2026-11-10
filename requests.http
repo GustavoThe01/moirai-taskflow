@@ -67,6 +67,34 @@ X-User-Id: {{user}}
 GET {{baseUrl}}/projects/{{projectId}}/tasks?sort=priority
 X-User-Id: {{user}}
 
+### Criar etiqueta
+POST {{baseUrl}}/projects/{{projectId}}/labels
+Content-Type: application/json
+X-User-Id: {{user}}
+
+{
+  "name": "bug",
+  "color": "#E11D48"
+}
+
+### Trocar as etiquetas da tarefa
+PUT {{baseUrl}}/tasks/{{taskId}}/labels
+Content-Type: application/json
+X-User-Id: {{user}}
+
+{
+  "labelIds": ["{{labelId}}"]
+}
+
+### Comentar na tarefa
+POST {{baseUrl}}/tasks/{{taskId}}/comments
+Content-Type: application/json
+X-User-Id: {{user}}
+
+{
+  "text": "Testei no ambiente de homologação e funcionou."
+}
+
 ### Atribuir responsável
 PATCH {{baseUrl}}/tasks/{{taskId}}/assignee
 Content-Type: application/json

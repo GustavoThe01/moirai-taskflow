@@ -15,8 +15,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_08_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-102_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_09_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-117_passando-15803d?style=flat-square)
 
 </div>
 
@@ -131,8 +131,11 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | `POST` | `/api/v1/projects/{id}/tasks` | Cria tarefa | ✅ 05 |
 | `PATCH` | `/api/v1/tasks/{id}/status` | Move a tarefa no fluxo | ✅ 05 |
 | `PATCH` | `/api/v1/tasks/{id}/assignee` | Atribui responsável | ✅ 05 |
-| `POST` | `/api/v1/tasks/{id}/comments` | Comenta na tarefa | 09 |
-| `PUT` | `/api/v1/tasks/{id}/labels` | Define labels | 09 |
+| `POST` | `/api/v1/projects/{id}/labels` | Cria etiqueta no projeto | ✅ 09 |
+| `GET` | `/api/v1/projects/{id}/labels` | Lista as etiquetas do projeto | ✅ 09 |
+| `PUT` | `/api/v1/tasks/{id}/labels` | Troca as etiquetas da tarefa (N:N) | ✅ 09 |
+| `POST` | `/api/v1/tasks/{id}/comments` | Comenta na tarefa | ✅ 09 |
+| `GET` | `/api/v1/tasks/{id}/comments` | Lista os comentários da tarefa | ✅ 09 |
 
 > Até o Dia 12, o usuário é informado pelo cabeçalho `X-User-Id`, de forma temporária. Depois, o JWT o substitui. Deixei exemplos de todas as chamadas em [`requests.http`](requests.http).
 
@@ -241,6 +244,26 @@ stateDiagram-v2
 
 ---
 
+## 🐢 N+1: encontrado, medido e corrigido
+
+Antes de corrigir, escrevi um teste que conta os comandos SQL pelas estatísticas do Hibernate. Ele mostrou dois casos:
+
+| Consulta | Antes | Depois | Correção |
+|---|---:|---:|---|
+| Página de 20 tarefas com etiquetas | 22 comandos | 3 | `@BatchSize(size = 50)` na coleção |
+| 15 projetos do usuário com os membros | 16 comandos | 1 | `@EntityGraph(attributePaths = "members")` |
+
+O segundo existia desde o Dia 03 e passou despercebido: cada projeto da lista buscava os membros numa consulta própria.
+
+As correções são diferentes de propósito. A lista de tarefas é paginada, e um `fetch join` de coleção com paginação faz
+o Hibernate trazer tudo e paginar em memória. Com `@BatchSize`, ele busca as etiquetas das 20 tarefas da página de uma
+vez, com `task_id IN (...)`. A lista de projetos não é paginada, então o `@EntityGraph` traz os membros na mesma consulta.
+
+O teste fica no projeto ([`NPlusOneTest`](src/test/java/dev/gustavo/moirai/adapter/out/persistence/NPlusOneTest.java)):
+se o N+1 voltar, o build quebra.
+
+---
+
 ## 🧠 Competências demonstradas
 
 | Área | Conceitos |
@@ -276,7 +299,7 @@ stateDiagram-v2
 | Semana | Dias | Tema | Release | Progresso |
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
-| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪⬜⬜ |
+| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪🟪⬜ |
 | 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
@@ -326,14 +349,15 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 | Tipo | Ferramentas | Situação |
 |---|---|---|
 | Contexto da aplicação | `@SpringBootTest` | ✅ 1 teste (contexto carrega) |
-| Domínio puro | JUnit + AssertJ, sem Spring | ✅ 38 testes (Task, Project, TaskStatus) |
+| Domínio puro | JUnit + AssertJ, sem Spring | ✅ 47 testes (Task, Project, TaskStatus, Label, Comment) |
 | Casos de uso | JUnit + Mockito, sem Spring | ✅ 13 testes |
 | Tipos de consulta | JUnit, sem Spring (página, filtro, limites) | ✅ 6 testes |
-| API de ponta a ponta | `@SpringBootTest` + MockMvc + SQLite | ✅ 19 testes |
+| API de ponta a ponta | `@SpringBootTest` + MockMvc + SQLite | ✅ 23 testes |
 | Contrato OpenAPI | O documento publicado tem os endpoints, os erros e os exemplos | ✅ 5 testes |
 | Controllers | `@WebMvcTest` + MockMvc, casos de uso simulados com `@MockitoBean` | ✅ 9 testes |
 | Persistência | `@SpringBootTest` + SQLite real | ✅ 8 testes (migrations, mapeamento, chave estrangeira, busca paginada) |
 | Repositórios | `@DataJpaTest` com o SQLite e as migrations reais | ✅ 3 testes |
+| N+1 | Conta os comandos SQL pelas estatísticas do Hibernate | ✅ 2 testes |
 | Segurança | testes `401` × `403` | ⏳ Dia 13 |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
 | Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
@@ -385,7 +409,8 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] Paginação, filtros e ordenação com Specifications (Dia 06)
 - [x] OpenAPI com springdoc e Swagger UI (Dia 07)
 - [x] Testes de camada com `@WebMvcTest` e `@DataJpaTest` (Dia 08)
-- [ ] Labels, comentários, N+1 e auditoria (Dias 09–10) → `v0.2.0`
+- [x] Etiquetas (N:N), comentários e correção de N+1 (Dia 09)
+- [ ] Auditoria (Dia 10) → `v0.2.0`
 - [ ] Usuários, JWT e autorização por recurso (Dias 11–13)
 - [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`
 - [ ] Eventos, cache, rate limiting, observabilidade (Dias 16–18)

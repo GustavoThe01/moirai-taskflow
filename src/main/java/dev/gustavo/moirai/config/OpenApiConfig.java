@@ -49,6 +49,8 @@ class OpenApiConfig {
                         .license(new License().name("Código aberto para estudo e portfólio")))
                 .addTagsItem(new Tag().name("Projetos").description("Criar, listar, renomear e excluir projetos"))
                 .addTagsItem(new Tag().name("Tarefas").description("Criar, listar, atribuir e mover tarefas no fluxo"))
+                .addTagsItem(new Tag().name("Etiquetas").description("Etiquetas do projeto, ligadas às tarefas (N:N)"))
+                .addTagsItem(new Tag().name("Comentários").description("Conversa registrada em cada tarefa"))
                 .components(new Components().responses(problemResponses()).addSchemas("ProblemDetail", problemSchema()));
     }
 
