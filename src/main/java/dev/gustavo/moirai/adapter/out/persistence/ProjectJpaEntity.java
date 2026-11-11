@@ -7,13 +7,23 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import java.time.Instant;
+import org.hibernate.annotations.SQLRestriction;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Tabela {@code project}. Separada do domínio: mudanças no banco não encostam nas regras de negócio. */
+/**
+ * Tabela {@code project}. Separada do domínio: mudanças no banco não encostam nas regras de negócio.
+ *
+ * <p>{@code @SQLRestriction} acrescenta {@code deleted_at IS NULL} a toda consulta desta entidade: projeto excluído
+ * some da aplicação, mas continua no banco para auditoria.
+ */
 @Entity
 @Table(name = "project")
-class ProjectJpaEntity {
+@SQLRestriction("deleted_at IS NULL")
+class ProjectJpaEntity extends AuditedEntity {
 
     @Id
     private String id;
@@ -28,6 +38,17 @@ class ProjectJpaEntity {
     @CollectionTable(name = "project_member", joinColumns = @JoinColumn(name = "project_id"))
     @Column(name = "user_id")
     private Set<String> members = new HashSet<>();
+
+    @CreatedDate
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
+
+    @CreatedBy
+    @Column(name = "created_by", updatable = false)
+    private String createdBy;
+
+    @Column(name = "deleted_at", insertable = false, updatable = false)
+    private Instant deletedAt;
 
     protected ProjectJpaEntity() {
         // Exigido pelo JPA

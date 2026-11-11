@@ -14,7 +14,7 @@ import java.util.Set;
 /** Tabela {@code task}. Datas e enums ficam como texto, e a conversão acontece em {@link PersistenceMapper}. */
 @Entity
 @Table(name = "task")
-class TaskJpaEntity {
+class TaskJpaEntity extends AuditedEntity {
 
     @Id
     private String id;

@@ -15,8 +15,9 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Spring Security](https://img.shields.io/badge/Spring_Security-JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_09_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-117_passando-15803d?style=flat-square)
+![Versão](https://img.shields.io/badge/versão-0.2.0-7e22ce?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_10_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-121_passando-15803d?style=flat-square)
 
 </div>
 
@@ -57,6 +58,8 @@ No [Nidavellir](https://github.com/GustavoThe01/nidavellir-inventory) eu constru
 - [Arquitetura Hexagonal](#️-arquitetura-hexagonal)
 - [O ciclo de vida de uma tarefa](#-o-ciclo-de-vida-de-uma-tarefa)
 - [Segurança](#-segurança)
+- [N+1: encontrado, medido e corrigido](#-n1-encontrado-medido-e-corrigido)
+- [Auditoria e exclusão lógica](#️-auditoria-e-exclusão-lógica)
 - [Competências demonstradas](#-competências-demonstradas)
 - [Metodologias e decisões](#-metodologias-e-decisões)
 - [Roadmap](#️-roadmap)
@@ -108,6 +111,7 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | 🏷️ **Labels** | Etiquetas reutilizáveis (relação N:N com tarefas) |
 | 💬 **Comentários** | Discussão dentro de cada tarefa |
 | 🔎 **Busca** | Paginação, ordenação e filtros dinâmicos (status, responsável, prazo) |
+| 🕵️ **Auditoria** | Quem e quando criou ou alterou cada projeto e tarefa; projeto excluído continua no banco (exclusão lógica) |
 | 🔔 **Eventos** | Mudança de status dispara notificação assíncrona |
 | 📈 **Operação** | Health check, métricas, logs estruturados e correlation id |
 
@@ -125,7 +129,7 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | `POST` | `/api/v1/projects` | Cria projeto | ✅ 04 |
 | `GET` | `/api/v1/projects/{id}` | Detalhe do projeto | ✅ 04 |
 | `PUT` | `/api/v1/projects/{id}` | Renomeia o projeto (só o dono) | ✅ 04 |
-| `DELETE` | `/api/v1/projects/{id}` | Exclui o projeto (só o dono) | ✅ 04 |
+| `DELETE` | `/api/v1/projects/{id}` | Exclui o projeto (só o dono); exclusão lógica desde o Dia 10 | ✅ 04 |
 | `POST` | `/api/v1/projects/{id}/members` | Adiciona membro | 13 |
 | `GET` | `/api/v1/projects/{id}/tasks` | Lista tarefas com filtros, ordenação e paginação | ✅ 06 |
 | `POST` | `/api/v1/projects/{id}/tasks` | Cria tarefa | ✅ 05 |
@@ -264,6 +268,41 @@ se o N+1 voltar, o build quebra.
 
 ---
 
+## 🕵️ Auditoria e exclusão lógica
+
+Cada projeto guarda quem o criou e quando, e projetos e tarefas guardam quem fez a última alteração e quando.
+Quem preenche essas colunas é o **JPA Auditing** do Spring Data, e não o código dos casos de uso:
+
+| Peça | O que faz |
+|---|---|
+| [`AuditedEntity`](src/main/java/dev/gustavo/moirai/adapter/out/persistence/AuditedEntity.java) | `@MappedSuperclass` com `updated_at` e `updated_by`, herdada pelas entidades de projeto e tarefa |
+| `@CreatedDate` / `@CreatedBy` | Só no projeto, com `updatable = false`: uma alteração nunca apaga quem criou |
+| [`AuditingConfig`](src/main/java/dev/gustavo/moirai/config/AuditingConfig.java) | `AuditorAware` lê o usuário do cabeçalho `X-User-Id` (até o Dia 12, quando passa a vir do JWT); `DateTimeProvider` usa o mesmo `Clock` da aplicação |
+
+A auditoria ficou na camada de persistência de propósito: quem alterou e quando é um detalhe de armazenamento, e o
+domínio continua sem nenhuma anotação do Spring ou do JPA. Fora de uma requisição (um teste, um job), não há usuário,
+e as colunas `*_by` ficam vazias.
+
+**Exclusão lógica.** O `DELETE` de um projeto só grava a data em `deleted_at`. A linha e as tarefas continuam no
+banco, e `@SQLRestriction("deleted_at IS NULL")` na entidade faz todas as consultas da aplicação ignorarem o
+projeto. Para a API, ele não existe mais: buscar, listar tarefas ou mudar uma tarefa dele devolve `404`. Excluir de
+novo também devolve `404` e não muda a data da primeira exclusão.
+
+Duas coisas que aprendi no caminho:
+
+- A exclusão é um `UPDATE` nativo. Numa consulta JPQL de `UPDATE`, o Hibernate acrescenta o filtro do
+  `@SQLRestriction` com um alias de tabela que o SQLite não aceita; com SQL nativo o comando fica exatamente como eu
+  escrevi.
+- As colunas de data da [`V4`](src/main/resources/db/migration/V4__audit_and_soft_delete.sql) são declaradas como
+  `TIMESTAMP` porque a validação do schema (`ddl-auto: validate`) confere esse tipo. No SQLite o nome do tipo não
+  muda o armazenamento, e o dialeto do Hibernate grava as datas como milissegundos desde 1970 (epoch). No
+  PostgreSQL (Dia 15) a mesma coluna vira um `timestamp` de verdade.
+
+O índice parcial `ix_project_active` cobre só os projetos não excluídos, que são os que a aplicação consulta.
+Os quatro testes estão em [`AuditAndSoftDeleteTest`](src/test/java/dev/gustavo/moirai/adapter/out/persistence/AuditAndSoftDeleteTest.java).
+
+---
+
 ## 🧠 Competências demonstradas
 
 | Área | Conceitos |
@@ -299,7 +338,7 @@ se o N+1 voltar, o build quebra.
 | Semana | Dias | Tema | Release | Progresso |
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
-| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪🟪⬜ |
+| 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪🟪🟪 |
 | 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
@@ -358,6 +397,7 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 | Persistência | `@SpringBootTest` + SQLite real | ✅ 8 testes (migrations, mapeamento, chave estrangeira, busca paginada) |
 | Repositórios | `@DataJpaTest` com o SQLite e as migrations reais | ✅ 3 testes |
 | N+1 | Conta os comandos SQL pelas estatísticas do Hibernate | ✅ 2 testes |
+| Auditoria e exclusão lógica | `@SpringBootTest` + MockMvc, conferindo as colunas direto no banco | ✅ 4 testes |
 | Segurança | testes `401` × `403` | ⏳ Dia 13 |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
 | Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
@@ -384,7 +424,7 @@ moirai-taskflow/
 │   ├── adapter/
 │   │   ├── in/web/                          # ✅ controllers, DTOs e erros padronizados
 │   │   └── out/persistence/                 # ✅ entidades JPA, mapper, adapters, Specifications
-│   └── config/                              # ✅ relógio e OpenAPI · ⏳ Dia 11 — segurança
+│   └── config/                              # ✅ relógio, OpenAPI e auditoria · ⏳ Dia 11 — segurança
 ├── src/main/resources/application.yml       # ✅ configuração, datasource e Actuator
 ├── src/main/resources/db/migration/         # ✅ migrations do Flyway
 ├── src/test/java/...                        # ✅ testes de domínio, contexto e persistência
@@ -410,7 +450,7 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] OpenAPI com springdoc e Swagger UI (Dia 07)
 - [x] Testes de camada com `@WebMvcTest` e `@DataJpaTest` (Dia 08)
 - [x] Etiquetas (N:N), comentários e correção de N+1 (Dia 09)
-- [ ] Auditoria (Dia 10) → `v0.2.0`
+- [x] Auditoria e exclusão lógica (Dia 10) → `v0.2.0`
 - [ ] Usuários, JWT e autorização por recurso (Dias 11–13)
 - [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`
 - [ ] Eventos, cache, rate limiting, observabilidade (Dias 16–18)

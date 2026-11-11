@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -33,11 +35,20 @@ import org.springframework.test.context.ActiveProfiles;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
-@Import({ProjectPersistenceAdapter.class, TaskPersistenceAdapter.class})
+@Import({ProjectPersistenceAdapter.class, TaskPersistenceAdapter.class, RepositoryDataJpaTest.FixedClock.class})
 @DisplayName("Repositórios (@DataJpaTest)")
 class RepositoryDataJpaTest {
 
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-09T12:00:00Z"), ZoneOffset.UTC);
+
+    /** A fatia JPA não carrega as configurações da aplicação; o adapter de projetos precisa de um relógio. */
+    @TestConfiguration
+    static class FixedClock {
+        @Bean
+        Clock clock() {
+            return CLOCK;
+        }
+    }
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 9);
 
     @Autowired

@@ -46,8 +46,8 @@
 - [x] Detectar e corrigir **N+1** (`@EntityGraph` / fetch join); registrar no README
 
 ### Dia 10 — Auditoria
-- [ ] JPA Auditing (`createdAt`, `updatedBy`), soft delete
-- [ ] Tag `v0.2.0`
+- [x] JPA Auditing (`createdAt`, `updatedBy`), soft delete
+- [x] Tag `v0.2.0`
 
 ## Semana 3 — Segurança e infraestrutura  → `v0.3.0`
 

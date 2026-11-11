@@ -5,6 +5,10 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [0.2.0] - 2026-11-11
+
+Segunda semana do roadmap: consultas, documentação da API, testes de camada, etiquetas, comentários e auditoria.
+
 ### Adicionado
 - `GET /api/v1/projects/{id}/tasks`: lista as tarefas do projeto com paginação, ordenação (`createdAt`, `dueDate`, `title`) e filtros por status, prioridade, responsável e intervalo de prazo.
 - Filtros montados com Specifications do Spring Data JPA; só os filtros preenchidos entram na consulta.
@@ -25,6 +29,13 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - Migration `V3` com `label`, `task_label` e `comment`, chaves estrangeiras em cascata e índices.
 - Correção de dois N+1, medidos antes e depois pelas estatísticas do Hibernate: tarefas com etiquetas (22 → 3 comandos, com `@BatchSize`) e projetos com membros (16 → 1, com `@EntityGraph`).
 - 15 testes novos.
+- JPA Auditing: `created_at` e `created_by` no projeto (sem mudar depois da criação), `updated_at` e `updated_by` em projetos e tarefas.
+- `AuditorAware` com o usuário do cabeçalho `X-User-Id` e `DateTimeProvider` com o `Clock` da aplicação.
+- Migration `V4` com as colunas de auditoria, `deleted_at` e o índice parcial `ix_project_active`.
+- 4 testes de auditoria e exclusão lógica (121 no total).
+
+### Alterado
+- `DELETE /api/v1/projects/{id}` passa a fazer exclusão lógica: grava `deleted_at`, mantém a linha e as tarefas, e o projeto some de todas as consultas (`@SQLRestriction`).
 
 ## [0.1.0] - 2026-11-06
 
