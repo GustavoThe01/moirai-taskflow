@@ -125,3 +125,22 @@ X-User-Id: {{user}}
 ### Excluir projeto
 DELETE {{baseUrl}}/projects/{{projectId}}
 X-User-Id: {{user}}
+
+### Cadastro (201; repetir o mesmo e-mail dá 409)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "ana@exemplo.com",
+  "name": "Ana Lima",
+  "password": "uma-senha-longa"
+}
+
+### Login (200 com a senha certa, 401 com a errada)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ana@exemplo.com",
+  "password": "uma-senha-longa"
+}

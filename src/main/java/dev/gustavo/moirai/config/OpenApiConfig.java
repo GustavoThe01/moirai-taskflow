@@ -47,6 +47,7 @@ class OpenApiConfig {
                                 `type`, `title`, `status`, `detail` e `instance`.""")
                         .contact(new Contact().name("Gustavo Osterno Thé").url("https://github.com/GustavoThe01"))
                         .license(new License().name("Código aberto para estudo e portfólio")))
+                .addTagsItem(new Tag().name("Autenticação").description("Cadastro e login"))
                 .addTagsItem(new Tag().name("Projetos").description("Criar, listar, renomear e excluir projetos"))
                 .addTagsItem(new Tag().name("Tarefas").description("Criar, listar, atribuir e mover tarefas no fluxo"))
                 .addTagsItem(new Tag().name("Etiquetas").description("Etiquetas do projeto, ligadas às tarefas (N:N)"))
@@ -92,12 +93,16 @@ class OpenApiConfig {
         Map<String, ApiResponse> responses = new LinkedHashMap<>();
         responses.put("BadRequest", problem("Dados inválidos: corpo mal formado, campo fora da regra ou parâmetro desconhecido",
                 400, "validation", "Dados inválidos", "Um ou mais campos não passaram na validação."));
+        responses.put("Unauthorized", problem("E-mail ou senha não conferem (a mensagem não diz qual dos dois)",
+                401, "invalid-credentials", "Credenciais inválidas", "E-mail ou senha inválidos."));
         responses.put("Forbidden", problem("Quem chamou não é membro do projeto ou não pode fazer esta operação",
                 403, "forbidden", "Operação não permitida", "O usuário não é membro do projeto."));
         responses.put("NotFound", problem("Projeto ou tarefa não encontrado",
                 404, "not-found", "Recurso não encontrado", "Tarefa 6a1f... não encontrada."));
         responses.put("UnprocessableContent", problem("A operação viola uma regra do domínio, como pular uma etapa do fluxo",
                 422, "invalid-transition", "Transição de status inválida", "Uma tarefa em TODO não pode ir para DONE."));
+        responses.put("Conflict", problem("Já existe uma conta com este e-mail",
+                409, "email-taken", "E-mail já cadastrado", "Já existe uma conta com o e-mail ana@exemplo.com."));
         return responses;
     }
 
