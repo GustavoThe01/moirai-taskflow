@@ -52,7 +52,7 @@
 ## Semana 3 — Segurança e infraestrutura  → `v0.3.0`
 
 ### Dia 11 — Usuários
-- [ ] Cadastro e login, senha com BCrypt, Spring Security básico
+- [x] Cadastro e login, senha com BCrypt, Spring Security básico
 
 ### Dia 12 — JWT
 - [ ] Access + refresh token, filtro de autenticação, roles

@@ -16,8 +16,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Versão](https://img.shields.io/badge/versão-0.2.0-7e22ce?style=flat-square)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_10_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-121_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_11_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-144_passando-15803d?style=flat-square)
 
 </div>
 
@@ -122,8 +122,8 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | Método | Rota | Descrição | Dia |
 |---|---|---|:---:|
 | `GET` | `/actuator/health` | Saúde da aplicação | ✅ 01 |
-| `POST` | `/api/v1/auth/register` | Cadastro de usuário | 11 |
-| `POST` | `/api/v1/auth/login` | Login, retorna access + refresh token | 12 |
+| `POST` | `/api/v1/auth/register` | Cadastro de usuário | ✅ 11 |
+| `POST` | `/api/v1/auth/login` | Login: confere e-mail e senha (tokens no Dia 12) | ✅ 11 |
 | `POST` | `/api/v1/auth/refresh` | Renova o access token | 12 |
 | `GET` | `/api/v1/projects` | Lista projetos do usuário | ✅ 04 |
 | `POST` | `/api/v1/projects` | Cria projeto | ✅ 04 |
@@ -239,12 +239,41 @@ stateDiagram-v2
 
 | Camada | Como |
 |---|---|
-| **Senhas** | BCrypt, nunca em texto puro |
+| **Senhas** | BCrypt, nunca em texto puro ✅ |
 | **Autenticação** | JWT de curta duração (access) + refresh token |
 | **Autorização** | Por papel (`USER`, `ADMIN`) e **por recurso**: só membros acessam o projeto |
 | **Erros** | `401` sem token válido, `403` sem permissão, sem vazar detalhes internos |
 | **Segredos** | Variáveis de ambiente por profile (`dev`, `test`, `prod`), nada no repositório |
 | **Abuso** | Rate limiting por usuário (Bucket4j) |
+
+### O que já está pronto (Dia 11)
+
+**Cadastro e login.** `POST /api/v1/auth/register` cria a conta e `POST /api/v1/auth/login` confere e-mail e senha.
+O e-mail é gravado em minúsculas e é único (índice único na tabela `app_user`). A senha só existe em texto puro dentro
+da requisição: o banco guarda o hash BCrypt, que já carrega o sal e o custo (`$2a$10$...`).
+
+**BCrypt fora do domínio.** O domínio (`User`) guarda o hash como um texto opaco. Quem gera e confere é a porta
+`PasswordHasher`, implementada por [`BCryptPasswordHasher`](src/main/java/dev/gustavo/moirai/adapter/out/security/BCryptPasswordHasher.java)
+com o `BCryptPasswordEncoder` do Spring Security. O caso de uso é testado com um mock dessa porta, sem Spring.
+
+Decisões de segurança que tomei no login:
+
+- **Mesma resposta para os dois erros.** E-mail desconhecido e senha errada dão o mesmo `401` com a mesma mensagem,
+  para a resposta não revelar quais e-mails têm conta.
+- **Mesmo tempo para os dois erros.** Quando o e-mail não existe, o BCrypt roda mesmo assim, contra um hash qualquer.
+  Sem isso, a resposta para e-mail desconhecido sairia dezenas de milissegundos mais rápida, e o tempo denunciaria a conta.
+- **Limite de 72 bytes.** O BCrypt ignora o que passa de 72 bytes da senha, sem avisar. A API recusa senhas maiores
+  em vez de aceitar uma senha que valeria só pela metade. São bytes e não caracteres: "ç" ocupa 2 bytes em UTF-8.
+- **Senha fora dos logs.** Os DTOs de cadastro e login escondem a senha no `toString`, e o `User` esconde o hash.
+
+**Spring Security, primeiro passo.** A [`SecurityConfig`](src/main/java/dev/gustavo/moirai/config/SecurityConfig.java)
+monta a cadeia de filtros de uma API sem sessão: sem cookie, sem formulário de login, sem HTTP Basic e com CSRF
+desligado (o CSRF protege sessões com cookie, que esta API não tem). As rotas públicas ficam declaradas.
+
+> ⚠️ **Ainda provisório.** As rotas de projetos e tarefas continuam abertas e identificam o usuário pelo cabeçalho
+> `X-User-Id`. No Dia 12 o filtro do JWT entra nessa cadeia, e elas passam a exigir token. Só então as colunas de
+> usuário das outras tabelas ganham chave estrangeira para `app_user`, porque hoje o `X-User-Id` pode ser de alguém
+> sem conta.
 
 ---
 
@@ -339,7 +368,7 @@ Os quatro testes estão em [`AuditAndSoftDeleteTest`](src/test/java/dev/gustavo/
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
 | 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪🟪🟪 |
-| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | ⬜⬜⬜⬜⬜ |
+| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | 🟪⬜⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
 Detalhes no [ROADMAP.md](ROADMAP.md) · Mudanças no [CHANGELOG.md](CHANGELOG.md).
@@ -398,6 +427,7 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 | Repositórios | `@DataJpaTest` com o SQLite e as migrations reais | ✅ 3 testes |
 | N+1 | Conta os comandos SQL pelas estatísticas do Hibernate | ✅ 2 testes |
 | Auditoria e exclusão lógica | `@SpringBootTest` + MockMvc, conferindo as colunas direto no banco | ✅ 4 testes |
+| Usuários e login | `@SpringBootTest` + MockMvc com BCrypt real, e o caso de uso com mocks | ✅ 23 testes (domínio, caso de uso e API) |
 | Segurança | testes `401` × `403` | ⏳ Dia 13 |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
 | Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
@@ -423,8 +453,9 @@ moirai-taskflow/
 │   │   └── service/                         # ✅ ProjectService, TaskService
 │   ├── adapter/
 │   │   ├── in/web/                          # ✅ controllers, DTOs e erros padronizados
-│   │   └── out/persistence/                 # ✅ entidades JPA, mapper, adapters, Specifications
-│   └── config/                              # ✅ relógio, OpenAPI e auditoria · ⏳ Dia 11 — segurança
+│   │   ├── out/persistence/                 # ✅ entidades JPA, mapper, adapters, Specifications
+│   │   └── out/security/                    # ✅ hash de senha com BCrypt
+│   └── config/                              # ✅ relógio, OpenAPI, auditoria e Spring Security
 ├── src/main/resources/application.yml       # ✅ configuração, datasource e Actuator
 ├── src/main/resources/db/migration/         # ✅ migrations do Flyway
 ├── src/test/java/...                        # ✅ testes de domínio, contexto e persistência
@@ -451,7 +482,8 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] Testes de camada com `@WebMvcTest` e `@DataJpaTest` (Dia 08)
 - [x] Etiquetas (N:N), comentários e correção de N+1 (Dia 09)
 - [x] Auditoria e exclusão lógica (Dia 10) → `v0.2.0`
-- [ ] Usuários, JWT e autorização por recurso (Dias 11–13)
+- [x] Usuários: cadastro, login e senha com BCrypt (Dia 11)
+- [ ] JWT e autorização por recurso (Dias 12–13)
 - [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`
 - [ ] Eventos, cache, rate limiting, observabilidade (Dias 16–18)
 - [ ] ArchUnit, JaCoCo, SonarCloud e release final (Dias 19–20) → `v1.0.0`

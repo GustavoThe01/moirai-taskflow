@@ -1,7 +1,9 @@
 package dev.gustavo.moirai.adapter.in.web;
 
 import dev.gustavo.moirai.domain.BusinessRuleViolationException;
+import dev.gustavo.moirai.domain.EmailAlreadyRegisteredException;
 import dev.gustavo.moirai.domain.ForbiddenOperationException;
+import dev.gustavo.moirai.domain.InvalidCredentialsException;
 import dev.gustavo.moirai.domain.InvalidTaskTransitionException;
 import dev.gustavo.moirai.domain.InvalidValueException;
 import dev.gustavo.moirai.domain.NotProjectMemberException;
@@ -52,6 +54,16 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail handleBusinessRule(BusinessRuleViolationException exception) {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, "business-rule",
                 "Regra de negócio violada", exception.getMessage());
+    }
+
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    ProblemDetail handleEmailTaken(EmailAlreadyRegisteredException exception) {
+        return problem(HttpStatus.CONFLICT, "email-taken", "E-mail já cadastrado", exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ProblemDetail handleInvalidCredentials(InvalidCredentialsException exception) {
+        return problem(HttpStatus.UNAUTHORIZED, "invalid-credentials", "Credenciais inválidas", exception.getMessage());
     }
 
     @ExceptionHandler(InvalidValueException.class)

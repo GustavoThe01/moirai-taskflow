@@ -5,6 +5,17 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado
+- Usuários: `POST /api/v1/auth/register` (201, 400 ou 409) e `POST /api/v1/auth/login` (200 ou 401).
+- Entidade de domínio `User`, com e-mail normalizado e único, e as portas `UserRepository` e `PasswordHasher`.
+- Senhas com BCrypt (custo 10) pelo `BCryptPasswordHasher`; o banco guarda só o hash.
+- Login com a mesma resposta e o mesmo tempo para e-mail desconhecido e senha errada.
+- Senha limitada a 72 bytes, o máximo que o BCrypt considera.
+- Spring Security: cadeia de filtros sem sessão, sem CSRF, sem formulário e sem HTTP Basic, com as rotas públicas declaradas.
+- Migration `V5` com a tabela `app_user` e o índice único do e-mail.
+- Respostas `Unauthorized` e `Conflict` documentadas no OpenAPI.
+- 23 testes novos (144 no total).
+
 ## [0.2.0] - 2026-11-11
 
 Segunda semana do roadmap: consultas, documentação da API, testes de camada, etiquetas, comentários e auditoria.
