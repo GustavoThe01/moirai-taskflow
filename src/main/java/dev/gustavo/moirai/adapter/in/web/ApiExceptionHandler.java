@@ -4,6 +4,7 @@ import dev.gustavo.moirai.domain.BusinessRuleViolationException;
 import dev.gustavo.moirai.domain.EmailAlreadyRegisteredException;
 import dev.gustavo.moirai.domain.ForbiddenOperationException;
 import dev.gustavo.moirai.domain.InvalidCredentialsException;
+import dev.gustavo.moirai.domain.InvalidRefreshTokenException;
 import dev.gustavo.moirai.domain.InvalidTaskTransitionException;
 import dev.gustavo.moirai.domain.InvalidValueException;
 import dev.gustavo.moirai.domain.NotProjectMemberException;
@@ -16,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +61,17 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(EmailAlreadyRegisteredException.class)
     ProblemDetail handleEmailTaken(EmailAlreadyRegisteredException exception) {
         return problem(HttpStatus.CONFLICT, "email-taken", "E-mail já cadastrado", exception.getMessage());
+    }
+
+    /** Token aceito pela assinatura, mas que não identifica um usuário (o {@code sub} não é um id válido). */
+    @ExceptionHandler(InvalidBearerTokenException.class)
+    ProblemDetail handleTokenWithoutUser(InvalidBearerTokenException exception) {
+        return problem(HttpStatus.UNAUTHORIZED, "unauthorized", "Não autenticado", "O access token não identifica um usuário.");
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    ProblemDetail handleInvalidRefreshToken(InvalidRefreshTokenException exception) {
+        return problem(HttpStatus.UNAUTHORIZED, "invalid-refresh-token", "Refresh token inválido", exception.getMessage());
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)

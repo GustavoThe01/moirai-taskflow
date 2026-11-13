@@ -29,7 +29,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @DisplayName("API de tarefas e erros padronizados")
 class TaskApiIntegrationTest {
 
-    private static final String USER = "X-User-Id";
     private static final MediaType PROBLEM = MediaType.APPLICATION_PROBLEM_JSON;
 
     @Autowired
@@ -42,7 +41,7 @@ class TaskApiIntegrationTest {
     @BeforeEach
     void createProject() throws Exception {
         projectPath = mvc.perform(post("/api/v1/projects")
-                        .header(USER, owner)
+                        .with(TestUsers.as(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Moirai\"}"))
                 .andExpect(status().isCreated())
@@ -52,7 +51,7 @@ class TaskApiIntegrationTest {
 
     private ResultActions postTask(String user, String body) throws Exception {
         return mvc.perform(post(projectPath + "/tasks")
-                .header(USER, user)
+                .with(TestUsers.as(user))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
     }
@@ -66,7 +65,7 @@ class TaskApiIntegrationTest {
     }
 
     private ResultActions patchJson(String path, String user, String body) throws Exception {
-        return mvc.perform(patch(path).header(USER, user).contentType(MediaType.APPLICATION_JSON).content(body));
+        return mvc.perform(patch(path).with(TestUsers.as(user)).contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     private ResultActions moveTo(String task, String user, String target) throws Exception {
@@ -172,7 +171,7 @@ class TaskApiIntegrationTest {
     }
 
     private ResultActions listTasks(String user, String query) throws Exception {
-        return mvc.perform(get(projectPath + "/tasks" + query).header(USER, user));
+        return mvc.perform(get(projectPath + "/tasks" + query).with(TestUsers.as(user)));
     }
 
     @Test

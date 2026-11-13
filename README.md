@@ -16,8 +16,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Versão](https://img.shields.io/badge/versão-0.2.0-7e22ce?style=flat-square)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_11_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-144_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_12_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-155_passando-15803d?style=flat-square)
 
 </div>
 
@@ -123,8 +123,10 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 |---|---|---|:---:|
 | `GET` | `/actuator/health` | Saúde da aplicação | ✅ 01 |
 | `POST` | `/api/v1/auth/register` | Cadastro de usuário | ✅ 11 |
-| `POST` | `/api/v1/auth/login` | Login: confere e-mail e senha (tokens no Dia 12) | ✅ 11 |
-| `POST` | `/api/v1/auth/refresh` | Renova o access token | 12 |
+| `POST` | `/api/v1/auth/login` | Login: devolve access token (JWT) e refresh token | ✅ 11 · tokens no 12 |
+| `POST` | `/api/v1/auth/refresh` | Troca o refresh token por um par novo (rotação) | ✅ 12 |
+| `POST` | `/api/v1/auth/logout` | Revoga o refresh token da sessão | ✅ 12 |
+| `GET` | `/api/v1/admin/users` | Lista os usuários, só papel `ADMIN` | ✅ 12 |
 | `GET` | `/api/v1/projects` | Lista projetos do usuário | ✅ 04 |
 | `POST` | `/api/v1/projects` | Cria projeto | ✅ 04 |
 | `GET` | `/api/v1/projects/{id}` | Detalhe do projeto | ✅ 04 |
@@ -141,7 +143,7 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | `POST` | `/api/v1/tasks/{id}/comments` | Comenta na tarefa | ✅ 09 |
 | `GET` | `/api/v1/tasks/{id}/comments` | Lista os comentários da tarefa | ✅ 09 |
 
-> Até o Dia 12, o usuário é informado pelo cabeçalho `X-User-Id`, de forma temporária. Depois, o JWT o substitui. Deixei exemplos de todas as chamadas em [`requests.http`](requests.http).
+> Menos as rotas de autenticação, toda rota exige o access token no cabeçalho `Authorization: Bearer <token>`. Deixei exemplos de todas as chamadas, começando pelo login, em [`requests.http`](requests.http).
 
 Exemplo de erro padronizado (**ProblemDetail, RFC 9457**):
 
@@ -240,7 +242,7 @@ stateDiagram-v2
 | Camada | Como |
 |---|---|
 | **Senhas** | BCrypt, nunca em texto puro ✅ |
-| **Autenticação** | JWT de curta duração (access) + refresh token |
+| **Autenticação** | JWT de curta duração (access) + refresh token ✅ |
 | **Autorização** | Por papel (`USER`, `ADMIN`) e **por recurso**: só membros acessam o projeto |
 | **Erros** | `401` sem token válido, `403` sem permissão, sem vazar detalhes internos |
 | **Segredos** | Variáveis de ambiente por profile (`dev`, `test`, `prod`), nada no repositório |
@@ -270,10 +272,43 @@ Decisões de segurança que tomei no login:
 monta a cadeia de filtros de uma API sem sessão: sem cookie, sem formulário de login, sem HTTP Basic e com CSRF
 desligado (o CSRF protege sessões com cookie, que esta API não tem). As rotas públicas ficam declaradas.
 
-> ⚠️ **Ainda provisório.** As rotas de projetos e tarefas continuam abertas e identificam o usuário pelo cabeçalho
-> `X-User-Id`. No Dia 12 o filtro do JWT entra nessa cadeia, e elas passam a exigir token. Só então as colunas de
-> usuário das outras tabelas ganham chave estrangeira para `app_user`, porque hoje o `X-User-Id` pode ser de alguém
-> sem conta.
+### JWT: access token curto e refresh token com rotação (Dia 12)
+
+O cabeçalho provisório `X-User-Id` saiu. Agora o login devolve dois tokens, e toda rota que não é de autenticação
+exige o primeiro:
+
+| | Access token | Refresh token |
+|---|---|---|
+| **O que é** | JWT assinado com HMAC-SHA256 (`sub` = id do usuário, `roles` = papel) | 32 bytes aleatórios em Base64 URL |
+| **Validade** | 15 minutos | 7 dias, uso único |
+| **Onde é conferido** | Só pela assinatura, emissor e validade, sem consultar o banco | No banco, pelo hash SHA-256 (o texto do token nunca é gravado) |
+| **Para que serve** | Ir no cabeçalho `Authorization: Bearer` de cada requisição | Pedir um par novo em `POST /api/v1/auth/refresh` |
+
+O Spring Security virou um **resource server**: o `NimbusJwtDecoder` confere cada token, e o claim `roles` vira as
+autoridades `ROLE_USER` e `ROLE_ADMIN`. Nos controllers, o parâmetro [`@CurrentUser`](src/main/java/dev/gustavo/moirai/adapter/in/web/CurrentUser.java)
+recebe o `sub` do token já como `UserId`, no lugar do cabeçalho. A auditoria lê o mesmo `sub`.
+
+Decisões que tomei:
+
+- **Por que dois tokens.** O access token não pode ser revogado: a API o aceita só pela assinatura, sem banco. Por isso
+  ele dura 15 minutos. O refresh token fica no banco e pode ser revogado, e é ele que mantém a sessão por dias.
+- **Rotação com detecção de reutilização.** Cada refresh troca o token usado por um novo, e o usado deixa de valer.
+  Se um token já trocado aparecer de novo, alguém tem uma cópia dele: a API revoga todos os tokens daquele login
+  (a família) e responde `401`. O dono legítimo só precisa fazer login de novo; quem copiou perde o acesso.
+- **Só o hash no banco.** Com SHA-256, e não BCrypt: o token já tem 256 bits aleatórios, então não existe senha fraca
+  para proteger contra força bruta, e o hash precisa ser determinístico para a busca pelo índice único.
+- **Chave fora do repositório.** A chave HMAC vem de `moirai.security.jwt-secret` (Base64, pelo menos 32 bytes), por
+  variável de ambiente. Sem ela, a aplicação gera uma chave temporária a cada execução e avisa no log; no Dia 14, o
+  profile `prod` vai exigir a chave.
+- **Papel `ADMIN` sem endpoint.** Quem é administrador é decidido por quem opera o sistema
+  (`moirai.security.admin-emails`), e não por uma rota da API.
+- **`401` × `403`.** Sem token, com token adulterado, vencido ou de outro emissor: `401` com `WWW-Authenticate: Bearer`.
+  Com token válido sem o papel exigido: `403`. As duas respostas saem em ProblemDetail, como o resto da API.
+
+**Mudança de plano: as chaves estrangeiras para `app_user`.** No Dia 11 escrevi que elas entrariam junto com o JWT.
+Não entraram. No SQLite, acrescentar uma chave estrangeira exige recriar a tabela, e seriam cinco tabelas
+(`project`, `project_member`, `task`, `comment` e `task_label`) só para depois recriar tudo de novo no PostgreSQL do
+Dia 15. Elas entram na migração para o PostgreSQL, onde `ALTER TABLE ... ADD CONSTRAINT` funciona direto.
 
 ---
 
@@ -306,7 +341,7 @@ Quem preenche essas colunas é o **JPA Auditing** do Spring Data, e não o códi
 |---|---|
 | [`AuditedEntity`](src/main/java/dev/gustavo/moirai/adapter/out/persistence/AuditedEntity.java) | `@MappedSuperclass` com `updated_at` e `updated_by`, herdada pelas entidades de projeto e tarefa |
 | `@CreatedDate` / `@CreatedBy` | Só no projeto, com `updatable = false`: uma alteração nunca apaga quem criou |
-| [`AuditingConfig`](src/main/java/dev/gustavo/moirai/config/AuditingConfig.java) | `AuditorAware` lê o usuário do cabeçalho `X-User-Id` (até o Dia 12, quando passa a vir do JWT); `DateTimeProvider` usa o mesmo `Clock` da aplicação |
+| [`AuditingConfig`](src/main/java/dev/gustavo/moirai/config/AuditingConfig.java) | `AuditorAware` lê o usuário do access token (claim `sub`); `DateTimeProvider` usa o mesmo `Clock` da aplicação |
 
 A auditoria ficou na camada de persistência de propósito: quem alterou e quando é um detalhe de armazenamento, e o
 domínio continua sem nenhuma anotação do Spring ou do JPA. Fora de uma requisição (um teste, um job), não há usuário,
@@ -368,7 +403,7 @@ Os quatro testes estão em [`AuditAndSoftDeleteTest`](src/test/java/dev/gustavo/
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
 | 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪🟪🟪 |
-| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | 🟪⬜⬜⬜⬜ |
+| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | 🟪🟪⬜⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
 Detalhes no [ROADMAP.md](ROADMAP.md) · Mudanças no [CHANGELOG.md](CHANGELOG.md).
@@ -428,7 +463,8 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 | N+1 | Conta os comandos SQL pelas estatísticas do Hibernate | ✅ 2 testes |
 | Auditoria e exclusão lógica | `@SpringBootTest` + MockMvc, conferindo as colunas direto no banco | ✅ 4 testes |
 | Usuários e login | `@SpringBootTest` + MockMvc com BCrypt real, e o caso de uso com mocks | ✅ 23 testes (domínio, caso de uso e API) |
-| Segurança | testes `401` × `403` | ⏳ Dia 13 |
+| JWT | Ciclo real: login, token nas rotas, adulterado, vencido, de outro emissor, rotação, reutilização, logout e papel `ADMIN` | ✅ 6 testes de ponta a ponta + 5 do caso de uso |
+| Autorização por recurso | Membros do projeto com `401` × `403` | ⏳ Dia 13 |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
 | Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
 
@@ -454,7 +490,7 @@ moirai-taskflow/
 │   ├── adapter/
 │   │   ├── in/web/                          # ✅ controllers, DTOs e erros padronizados
 │   │   ├── out/persistence/                 # ✅ entidades JPA, mapper, adapters, Specifications
-│   │   └── out/security/                    # ✅ hash de senha com BCrypt
+│   │   └── out/security/                    # ✅ hash de senha com BCrypt e emissão do JWT
 │   └── config/                              # ✅ relógio, OpenAPI, auditoria e Spring Security
 ├── src/main/resources/application.yml       # ✅ configuração, datasource e Actuator
 ├── src/main/resources/db/migration/         # ✅ migrations do Flyway
@@ -483,7 +519,8 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] Etiquetas (N:N), comentários e correção de N+1 (Dia 09)
 - [x] Auditoria e exclusão lógica (Dia 10) → `v0.2.0`
 - [x] Usuários: cadastro, login e senha com BCrypt (Dia 11)
-- [ ] JWT e autorização por recurso (Dias 12–13)
+- [x] JWT com access e refresh token, rotação e papéis (Dia 12)
+- [ ] Autorização por recurso (Dia 13)
 - [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`
 - [ ] Eventos, cache, rate limiting, observabilidade (Dias 16–18)
 - [ ] ArchUnit, JaCoCo, SonarCloud e release final (Dias 19–20) → `v1.0.0`

@@ -6,6 +6,24 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- JWT como resource server do Spring Security (OAuth2 Resource Server): access token HMAC-SHA256 de 15 minutos com `sub`, `email` e `roles`.
+- Refresh token de 7 dias e uso único, guardado só como hash SHA-256 (migration `V6`, tabela `refresh_token`).
+- `POST /api/v1/auth/refresh` com rotação; reutilizar um token já trocado revoga todos os tokens do mesmo login.
+- `POST /api/v1/auth/logout`, que revoga o refresh token da sessão.
+- Papéis `USER` e `ADMIN` (coluna `role`); administradores definidos por `moirai.security.admin-emails`.
+- `GET /api/v1/admin/users`, só para `ADMIN`.
+- Parâmetro `@CurrentUser` nos controllers, com o usuário vindo do token.
+- `401` e `403` em ProblemDetail, com `WWW-Authenticate: Bearer`; esquema `bearerAuth` no OpenAPI.
+- 11 testes novos (155 no total), incluindo o ciclo do JWT de ponta a ponta.
+
+### Alterado
+- O login devolve o par de tokens e os dados do usuário (`user`), em vez de só os dados do usuário.
+- Toda rota, menos as de autenticação, documentação e health check, exige o access token.
+- A auditoria passa a ler o usuário do token.
+- Os testes de fatia (`@WebMvcTest`) usam a mesma cadeia de segurança da aplicação.
+
+### Removido
+- O cabeçalho provisório `X-User-Id`.
 - Usuários: `POST /api/v1/auth/register` (201, 400 ou 409) e `POST /api/v1/auth/login` (200 ou 401).
 - Entidade de domínio `User`, com e-mail normalizado e único, e as portas `UserRepository` e `PasswordHasher`.
 - Senhas com BCrypt (custo 10) pelo `BCryptPasswordHasher`; o banco guarda só o hash.

@@ -81,7 +81,7 @@ class AuthApiTest {
     void login() throws Exception {
         register(email, "senha-bem-longa").andExpect(status().isCreated());
 
-        login(email, "senha-bem-longa").andExpect(status().isOk()).andExpect(jsonPath("$.email").value(email));
+        login(email, "senha-bem-longa").andExpect(status().isOk()).andExpect(jsonPath("$.user.email").value(email));
 
         String wrongPassword = login(email, "senha-errada!!").andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();

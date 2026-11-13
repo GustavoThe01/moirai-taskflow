@@ -3,6 +3,7 @@ package dev.gustavo.moirai.adapter.in.web;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -44,11 +45,13 @@ class OpenApiDocumentationTest {
     }
 
     @Test
-    @DisplayName("descreve o cabeçalho provisório de usuário em cada operação")
-    void describesUserHeader() throws Exception {
+    @DisplayName("documenta o access token como Bearer JWT, exigido em toda rota menos as de autenticação")
+    void describesBearerToken() throws Exception {
         mvc.perform(get(DOCS))
-                .andExpect(jsonPath("$.paths['/api/v1/projects'].post.parameters[?(@.name == 'X-User-Id')].description",
-                        hasItem(containsString("JWT"))))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+                .andExpect(jsonPath("$.security[0]", hasKey("bearerAuth")))
+                .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security", hasSize(0)))
                 .andExpect(jsonPath("$.paths['/api/v1/projects'].post.tags", hasItem("Projetos")));
     }
 

@@ -7,10 +7,17 @@ import dev.gustavo.moirai.application.port.out.UserRepository;
 import dev.gustavo.moirai.domain.EmailAlreadyRegisteredException;
 import dev.gustavo.moirai.domain.InvalidCredentialsException;
 import dev.gustavo.moirai.domain.InvalidValueException;
+import dev.gustavo.moirai.domain.Role;
 import dev.gustavo.moirai.domain.User;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +33,24 @@ class UserService implements RegisterUser, AuthenticateUser {
     private final Clock clock;
     // Hash de uma senha qualquer, usado quando o e-mail não existe (ver authenticate).
     private final String dummyHash;
+    // E-mails que nascem com o papel ADMIN. Não existe endpoint para virar administrador: é decisão de quem opera.
+    private final Set<String> adminEmails;
 
-    UserService(UserRepository users, PasswordHasher hasher, Clock clock) {
+    @Autowired
+    UserService(UserRepository users, PasswordHasher hasher, Clock clock,
+                @Value("${moirai.security.admin-emails:}") List<String> adminEmails) {
         this.users = users;
         this.hasher = hasher;
         this.clock = clock;
         this.dummyHash = hasher.hash("moirai-sem-usuario");
+        this.adminEmails = adminEmails.stream()
+                .filter(email -> !email.isBlank())
+                .map(email -> email.strip().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    UserService(UserRepository users, PasswordHasher hasher, Clock clock) {
+        this(users, hasher, clock, List.of());
     }
 
     @Override
@@ -43,7 +62,8 @@ class UserService implements RegisterUser, AuthenticateUser {
         if (users.existsByEmail(normalized)) {
             throw new EmailAlreadyRegisteredException(normalized);
         }
-        User user = User.register(normalized, name, hasher.hash(password), clock.instant());
+        Role role = adminEmails.contains(normalized) ? Role.ADMIN : Role.USER;
+        User user = User.register(normalized, name, hasher.hash(password), role, clock.instant());
         users.save(user);
         return user;
     }

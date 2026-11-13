@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,14 +33,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * API de projetos.
  *
- * <p>O usuário vem do cabeçalho {@code X-User-Id} apenas até o Dia 12, quando o JWT o substitui.
+ * <p>O usuário é o dono do access token (claim {@code sub}), recebido pelo parâmetro {@link CurrentUser}.
  */
 @RestController
 @RequestMapping("/api/v1/projects")
 @Tag(name = "Projetos")
 class ProjectController {
 
-    private static final String USER_HEADER = "X-User-Id";
 
     private final CreateProject createProject;
     private final GetProject getProject;
@@ -62,9 +60,9 @@ class ProjectController {
     @Operation(summary = "Cria um projeto", description = "Quem cria vira dono e primeiro membro do projeto.")
     @ApiResponse(responseCode = "201", description = "Projeto criado; o cabeçalho Location aponta para ele")
     @ApiResponse(responseCode = "400", ref = "BadRequest")
-    ResponseEntity<ProjectResponse> create(@RequestHeader(USER_HEADER) UUID user,
+    ResponseEntity<ProjectResponse> create(@CurrentUser UserId user,
                                            @Valid @RequestBody CreateProjectRequest request) {
-        Project project = createProject.create(request.name(), new UserId(user));
+        Project project = createProject.create(request.name(), user);
         URI location = URI.create("/api/v1/projects/" + project.id());
         return ResponseEntity.created(location).body(ProjectResponse.from(project));
     }
@@ -72,8 +70,8 @@ class ProjectController {
     @GetMapping
     @Operation(summary = "Lista os projetos de que o usuário é membro")
     @ApiResponse(responseCode = "200", description = "Projetos do usuário, ordenados pelo nome")
-    List<ProjectResponse> list(@RequestHeader(USER_HEADER) UUID user) {
-        return listProjects.listFor(new UserId(user)).stream().map(ProjectResponse::from).toList();
+    List<ProjectResponse> list(@CurrentUser UserId user) {
+        return listProjects.listFor(user).stream().map(ProjectResponse::from).toList();
     }
 
     @GetMapping("/{id}")
@@ -81,8 +79,8 @@ class ProjectController {
     @ApiResponse(responseCode = "200", description = "Projeto encontrado")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    ProjectResponse get(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id) {
-        return ProjectResponse.from(getProject.get(new ProjectId(id), new UserId(user)));
+    ProjectResponse get(@CurrentUser UserId user, @PathVariable UUID id) {
+        return ProjectResponse.from(getProject.get(new ProjectId(id), user));
     }
 
     @PutMapping("/{id}")
@@ -91,9 +89,9 @@ class ProjectController {
     @ApiResponse(responseCode = "400", ref = "BadRequest")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    ProjectResponse rename(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
+    ProjectResponse rename(@CurrentUser UserId user, @PathVariable UUID id,
                            @Valid @RequestBody RenameProjectRequest request) {
-        return ProjectResponse.from(renameProject.rename(new ProjectId(id), request.name(), new UserId(user)));
+        return ProjectResponse.from(renameProject.rename(new ProjectId(id), request.name(), user));
     }
 
     @DeleteMapping("/{id}")
@@ -102,7 +100,7 @@ class ProjectController {
     @ApiResponse(responseCode = "204", description = "Projeto excluído")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    void delete(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id) {
-        deleteProject.delete(new ProjectId(id), new UserId(user));
+    void delete(@CurrentUser UserId user, @PathVariable UUID id) {
+        deleteProject.delete(new ProjectId(id), user);
     }
 }

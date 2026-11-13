@@ -21,16 +21,16 @@ import dev.gustavo.moirai.domain.UserId;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ProjectController.class)
+@Import({dev.gustavo.moirai.config.SecurityTestImports.class})
 @DisplayName("ProjectController (@WebMvcTest)")
 class ProjectControllerWebMvcTest {
-
-    private static final String USER = "X-User-Id";
 
     @Autowired
     private MockMvc mvc;
@@ -58,7 +58,7 @@ class ProjectControllerWebMvcTest {
         Project project = Project.create("Moirai", owner);
         when(listProjects.listFor(owner)).thenReturn(List.of(project));
 
-        mvc.perform(get("/api/v1/projects").header(USER, owner.value()))
+        mvc.perform(get("/api/v1/projects").with(TestUsers.as(owner.value())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Moirai"))
                 .andExpect(jsonPath("$[0].members[0]").value(owner.value().toString()));
@@ -72,9 +72,9 @@ class ProjectControllerWebMvcTest {
         doThrow(new ForbiddenOperationException("Só o dono pode excluir o projeto."))
                 .when(deleteProject).delete(theirs, owner);
 
-        mvc.perform(delete("/api/v1/projects/{id}", mine.value()).header(USER, owner.value()))
+        mvc.perform(delete("/api/v1/projects/{id}", mine.value()).with(TestUsers.as(owner.value())))
                 .andExpect(status().isNoContent());
-        mvc.perform(delete("/api/v1/projects/{id}", theirs.value()).header(USER, owner.value()))
+        mvc.perform(delete("/api/v1/projects/{id}", theirs.value()).with(TestUsers.as(owner.value())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("Só o dono pode excluir o projeto."));
 
@@ -87,9 +87,9 @@ class ProjectControllerWebMvcTest {
         ProjectId missing = ProjectId.newId();
         when(getProject.get(missing, owner)).thenThrow(new ProjectNotFoundException(missing));
 
-        mvc.perform(get("/api/v1/projects/{id}", "nao-e-uuid").header(USER, owner.value()))
+        mvc.perform(get("/api/v1/projects/{id}", "nao-e-uuid").with(TestUsers.as(owner.value())))
                 .andExpect(status().isBadRequest());
-        mvc.perform(get("/api/v1/projects/{id}", missing.value()).header(USER, owner.value()))
+        mvc.perform(get("/api/v1/projects/{id}", missing.value()).with(TestUsers.as(owner.value())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value("/problems/not-found"));
     }

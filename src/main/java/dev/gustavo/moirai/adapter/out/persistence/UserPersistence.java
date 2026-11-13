@@ -1,6 +1,7 @@
 package dev.gustavo.moirai.adapter.out.persistence;
 
 import dev.gustavo.moirai.application.port.out.UserRepository;
+import dev.gustavo.moirai.domain.Role;
 import dev.gustavo.moirai.domain.User;
 import dev.gustavo.moirai.domain.UserId;
 import jakarta.persistence.Column;
@@ -8,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -31,6 +33,9 @@ class UserJpaEntity {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(nullable = false)
+    private String role;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -43,11 +48,12 @@ class UserJpaEntity {
         this.email = user.email();
         this.name = user.name();
         this.passwordHash = user.passwordHash();
+        this.role = user.role().name();
         this.createdAt = user.createdAt();
     }
 
     User toDomain() {
-        return User.restore(new UserId(UUID.fromString(id)), email, name, passwordHash, createdAt);
+        return User.restore(new UserId(UUID.fromString(id)), email, name, passwordHash, Role.valueOf(role), createdAt);
     }
 }
 
@@ -56,6 +62,8 @@ interface UserJpaRepository extends JpaRepository<UserJpaEntity, String> {
     Optional<UserJpaEntity> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    List<UserJpaEntity> findAllByOrderByCreatedAtAsc();
 }
 
 @Repository
@@ -83,5 +91,17 @@ class UserPersistenceAdapter implements UserRepository {
     @Transactional(readOnly = true)
     public boolean existsByEmail(String normalizedEmail) {
         return users.existsByEmail(normalizedEmail);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<User> findById(UserId id) {
+        return users.findById(id.toString()).map(UserJpaEntity::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> findAll() {
+        return users.findAllByOrderByCreatedAtAsc().stream().map(UserJpaEntity::toDomain).toList();
     }
 }

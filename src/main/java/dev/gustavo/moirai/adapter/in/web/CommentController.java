@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Comentários")
 class CommentController {
 
-    private static final String USER_HEADER = "X-User-Id";
 
     private final AddComment addComment;
     private final ListComments listComments;
@@ -57,9 +55,9 @@ class CommentController {
     @ApiResponse(responseCode = "400", ref = "BadRequest")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    CommentResponse add(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID taskId,
+    CommentResponse add(@CurrentUser UserId user, @PathVariable UUID taskId,
                         @Valid @RequestBody AddCommentRequest request) {
-        return CommentResponse.from(addComment.add(new TaskId(taskId), request.text(), new UserId(user)));
+        return CommentResponse.from(addComment.add(new TaskId(taskId), request.text(), user));
     }
 
     @GetMapping
@@ -67,7 +65,7 @@ class CommentController {
     @ApiResponse(responseCode = "200", description = "Comentários da tarefa")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    List<CommentResponse> list(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID taskId) {
-        return listComments.list(new TaskId(taskId), new UserId(user)).stream().map(CommentResponse::from).toList();
+    List<CommentResponse> list(@CurrentUser UserId user, @PathVariable UUID taskId) {
+        return listComments.list(new TaskId(taskId), user).stream().map(CommentResponse::from).toList();
     }
 }

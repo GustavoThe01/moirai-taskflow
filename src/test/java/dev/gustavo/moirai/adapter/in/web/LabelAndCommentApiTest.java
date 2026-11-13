@@ -29,8 +29,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @DisplayName("API de etiquetas e comentários")
 class LabelAndCommentApiTest {
 
-    private static final String USER = "X-User-Id";
-
     @Autowired
     private MockMvc mvc;
 
@@ -39,7 +37,7 @@ class LabelAndCommentApiTest {
     private String taskPath;
 
     private ResultActions send(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request, String user, String body) throws Exception {
-        return mvc.perform(request.header(USER, user).contentType(MediaType.APPLICATION_JSON).content(body));
+        return mvc.perform(request.with(TestUsers.as(user)).contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     @BeforeEach
@@ -64,7 +62,7 @@ class LabelAndCommentApiTest {
         createLabel("urgente");
         createLabel("bug");
 
-        mvc.perform(get(projectPath + "/labels").header(USER, owner))
+        mvc.perform(get(projectPath + "/labels").with(TestUsers.as(owner)))
                 .andExpect(jsonPath("$[*].name", contains("bug", "urgente")))
                 .andExpect(jsonPath("$[0].color").value("#E11D48"));
         send(post(projectPath + "/labels"), owner, "{\"name\": \"BUG\", \"color\": \"#000000\"}")
@@ -81,7 +79,7 @@ class LabelAndCommentApiTest {
         send(put(taskPath + "/labels"), owner, "{\"labelIds\": [\"%s\", \"%s\"]}".formatted(bug, urgent))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.labelIds", containsInAnyOrder(bug, urgent)));
-        mvc.perform(get(projectPath + "/tasks").header(USER, owner))
+        mvc.perform(get(projectPath + "/tasks").with(TestUsers.as(owner)))
                 .andExpect(jsonPath("$.items[0].labelIds", hasSize(2)));
         send(put(taskPath + "/labels"), owner, "{\"labelIds\": []}")
                 .andExpect(jsonPath("$.labelIds", hasSize(0)));
@@ -109,7 +107,7 @@ class LabelAndCommentApiTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.authorId").value(owner));
 
-        mvc.perform(get(taskPath + "/comments").header(USER, owner))
+        mvc.perform(get(taskPath + "/comments").with(TestUsers.as(owner)))
                 .andExpect(jsonPath("$[*].text", contains("Comecei pela tela de login.", "Falta o teste.")));
         send(post(taskPath + "/comments"), UUID.randomUUID().toString(), "{\"text\": \"Intruso\"}")
                 .andExpect(status().isForbidden());

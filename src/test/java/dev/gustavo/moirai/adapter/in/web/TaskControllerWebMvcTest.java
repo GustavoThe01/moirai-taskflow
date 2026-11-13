@@ -42,6 +42,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -53,10 +54,10 @@ import org.springframework.test.web.servlet.MockMvc;
  * então o teste confere o contrato HTTP (rota, validação, conversão, status) sem banco e sem domínio rodando.
  */
 @WebMvcTest(TaskController.class)
+@Import({dev.gustavo.moirai.config.SecurityTestImports.class})
 @DisplayName("TaskController (@WebMvcTest)")
 class TaskControllerWebMvcTest {
 
-    private static final String USER = "X-User-Id";
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-09T12:00:00Z"), ZoneOffset.UTC);
 
     @Autowired
@@ -91,7 +92,7 @@ class TaskControllerWebMvcTest {
         when(createTask.create(eq(project.id()), any(), eq(owner))).thenReturn(task);
 
         mvc.perform(post("/api/v1/projects/{id}/tasks", project.id().value())
-                        .header(USER, owner.value())
+                        .with(TestUsers.as(owner.value()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\": \"Escrever testes\", \"description\": \"Fatia web\", \"priority\": \"HIGH\", \"dueDate\": \"2026-12-01\"}"))
                 .andExpect(status().isCreated())
@@ -108,7 +109,7 @@ class TaskControllerWebMvcTest {
     @DisplayName("corpo inválido para no controller, sem chamar o caso de uso")
     void validation() throws Exception {
         mvc.perform(post("/api/v1/projects/{id}/tasks", project.id().value())
-                        .header(USER, owner.value())
+                        .with(TestUsers.as(owner.value()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\": \"x\"}"))
                 .andExpect(status().isBadRequest())
@@ -118,10 +119,10 @@ class TaskControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("sem o cabeçalho de usuário, a requisição é recusada com 400")
-    void missingUserHeader() throws Exception {
+    @DisplayName("sem access token, a requisição é recusada com 401 antes de chegar ao controller")
+    void missingToken() throws Exception {
         mvc.perform(get("/api/v1/projects/{id}/tasks", project.id().value()))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(listTasks);
     }
@@ -133,7 +134,7 @@ class TaskControllerWebMvcTest {
         when(listTasks.list(any(), any(), any(), any())).thenReturn(new Page<>(List.of(task()), 1, 5, 6));
 
         mvc.perform(get("/api/v1/projects/{id}/tasks", project.id().value())
-                        .header(USER, owner.value())
+                        .with(TestUsers.as(owner.value()))
                         .param("status", "TODO")
                         .param("priority", "HIGH")
                         .param("assigneeId", assignee.toString())
@@ -157,7 +158,7 @@ class TaskControllerWebMvcTest {
     @DisplayName("ordenação desconhecida vira 400 antes de chegar ao caso de uso")
     void unknownSort() throws Exception {
         mvc.perform(get("/api/v1/projects/{id}/tasks", project.id().value())
-                        .header(USER, owner.value())
+                        .with(TestUsers.as(owner.value()))
                         .param("sort", "priority"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("/problems/invalid-value"));
@@ -174,14 +175,14 @@ class TaskControllerWebMvcTest {
         when(moveTask.move(id, TaskStatus.IN_PROGRESS, stranger)).thenThrow(new NotProjectMemberException(stranger, project.id()));
 
         mvc.perform(patch("/api/v1/tasks/{id}/status", id.value())
-                        .header(USER, owner.value())
+                        .with(TestUsers.as(owner.value()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\": \"DONE\"}"))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("/problems/invalid-transition"));
 
         mvc.perform(patch("/api/v1/tasks/{id}/status", id.value())
-                        .header(USER, stranger.value())
+                        .with(TestUsers.as(stranger.value()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\": \"IN_PROGRESS\"}"))
                 .andExpect(status().isForbidden());

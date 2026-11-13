@@ -30,8 +30,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("API de projetos")
 class ProjectApiIntegrationTest {
 
-    private static final String USER = "X-User-Id";
-
     @Autowired
     private MockMvc mvc;
 
@@ -40,7 +38,7 @@ class ProjectApiIntegrationTest {
 
     private String createProject(String name) throws Exception {
         String location = mvc.perform(post("/api/v1/projects")
-                        .header(USER, owner)
+                        .with(TestUsers.as(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"%s\"}".formatted(name)))
                 .andExpect(status().isCreated())
@@ -53,7 +51,7 @@ class ProjectApiIntegrationTest {
     @DisplayName("POST cria o projeto, com o criador como membro, e devolve 201 com Location")
     void createsProject() throws Exception {
         mvc.perform(post("/api/v1/projects")
-                        .header(USER, owner)
+                        .with(TestUsers.as(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Lançamento\"}"))
                 .andExpect(status().isCreated())
@@ -68,12 +66,12 @@ class ProjectApiIntegrationTest {
     void listsOnlyMyProjects() throws Exception {
         createProject("Meu projeto");
 
-        mvc.perform(get("/api/v1/projects").header(USER, owner))
+        mvc.perform(get("/api/v1/projects").with(TestUsers.as(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[*].name", hasItem("Meu projeto")));
 
-        mvc.perform(get("/api/v1/projects").header(USER, stranger))
+        mvc.perform(get("/api/v1/projects").with(TestUsers.as(stranger)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
@@ -83,9 +81,9 @@ class ProjectApiIntegrationTest {
     void getsById() throws Exception {
         String location = createProject("Meu projeto");
 
-        mvc.perform(get(location).header(USER, owner)).andExpect(status().isOk());
-        mvc.perform(get(location).header(USER, stranger)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/v1/projects/" + UUID.randomUUID()).header(USER, owner))
+        mvc.perform(get(location).with(TestUsers.as(owner))).andExpect(status().isOk());
+        mvc.perform(get(location).with(TestUsers.as(stranger))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/projects/" + UUID.randomUUID()).with(TestUsers.as(owner)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail", containsString("não encontrado")));
     }
@@ -96,12 +94,12 @@ class ProjectApiIntegrationTest {
         String location = createProject("Nome antigo");
         String body = "{\"name\": \"Nome novo\"}";
 
-        mvc.perform(put(location).header(USER, stranger).contentType(MediaType.APPLICATION_JSON).content(body))
+        mvc.perform(put(location).with(TestUsers.as(stranger)).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
-        mvc.perform(put(location).header(USER, owner).contentType(MediaType.APPLICATION_JSON).content(body))
+        mvc.perform(put(location).with(TestUsers.as(owner)).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Nome novo"));
-        mvc.perform(get(location).header(USER, owner)).andExpect(jsonPath("$.name").value("Nome novo"));
+        mvc.perform(get(location).with(TestUsers.as(owner))).andExpect(jsonPath("$.name").value("Nome novo"));
     }
 
     @Test
@@ -109,25 +107,27 @@ class ProjectApiIntegrationTest {
     void deletes() throws Exception {
         String location = createProject("Descartável");
 
-        mvc.perform(delete(location).header(USER, stranger)).andExpect(status().isForbidden());
-        mvc.perform(delete(location).header(USER, owner)).andExpect(status().isNoContent());
-        mvc.perform(get(location).header(USER, owner)).andExpect(status().isNotFound());
+        mvc.perform(delete(location).with(TestUsers.as(stranger))).andExpect(status().isForbidden());
+        mvc.perform(delete(location).with(TestUsers.as(owner))).andExpect(status().isNoContent());
+        mvc.perform(get(location).with(TestUsers.as(owner))).andExpect(status().isNotFound());
     }
 
     @Test
     @DisplayName("nome inválido devolve 400")
     void rejectsInvalidName() throws Exception {
         mvc.perform(post("/api/v1/projects")
-                        .header(USER, owner)
+                        .with(TestUsers.as(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"ab\"}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("sem o cabeçalho do usuário ou com id mal formado devolve 400")
+    @DisplayName("sem token ou com token que não identifica um usuário devolve 401")
     void rejectsMissingOrInvalidUser() throws Exception {
-        mvc.perform(get("/api/v1/projects")).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/v1/projects").header(USER, "nao-e-uuid")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/projects"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("/problems/unauthorized"));
+        mvc.perform(get("/api/v1/projects").with(TestUsers.as("nao-e-uuid"))).andExpect(status().isUnauthorized());
     }
 }

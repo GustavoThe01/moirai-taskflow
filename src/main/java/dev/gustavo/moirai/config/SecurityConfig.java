@@ -1,26 +1,35 @@
 package dev.gustavo.moirai.config;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URI;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Spring Security, primeiro passo: a cadeia de filtros de uma API sem sessão.
+ * Spring Security como resource server: toda rota, menos as públicas, exige um JWT válido no cabeçalho
+ * {@code Authorization: Bearer}. Sem sessão, sem cookie e, por isso, sem CSRF.
  *
  * <ul>
- *   <li><b>Sem sessão e sem cookie:</b> cada requisição se identifica sozinha. Por isso o CSRF fica desligado:
- *       ele protege sessões baseadas em cookie, que esta API não usa.</li>
- *   <li><b>Sem formulário de login e sem HTTP Basic:</b> o login é o endpoint {@code POST /api/v1/auth/login}.</li>
- *   <li><b>Rotas públicas declaradas:</b> cadastro, login, documentação e health check.</li>
+ *   <li>Sem token ou com token inválido (assinatura, emissor, validade): {@code 401} com {@code WWW-Authenticate}.</li>
+ *   <li>Com token válido, mas sem o papel exigido: {@code 403}.</li>
+ *   <li>As duas respostas usam ProblemDetail, como o resto da API.</li>
  * </ul>
- *
- * <p>As rotas de projetos e tarefas ainda ficam abertas e usam o cabeçalho provisório {@code X-User-Id}.
- * No Dia 12, o filtro do JWT entra nesta cadeia e elas passam a exigir um token.
  */
 @Configuration
 class SecurityConfig {
@@ -30,7 +39,9 @@ class SecurityConfig {
     };
 
     @Bean
-    SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
+    SecurityFilterChain apiSecurity(HttpSecurity http, JsonMapper json) throws Exception {
+        var bearerEntryPoint = new BearerTokenAuthenticationEntryPoint();
+        var bearerDenied = new BearerTokenAccessDeniedHandler();
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -39,9 +50,43 @@ class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(routes -> routes
                         .requestMatchers(PUBLIC_ROUTES).permitAll()
-                        // Provisório até o Dia 12: troca para .anyRequest().authenticated() com o filtro do JWT.
-                        .anyRequest().permitAll())
+                        .requestMatchers(HttpMethod.GET, "/").permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(server -> server
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(rolesFromToken()))
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            bearerEntryPoint.commence(request, response, exception); // status 401 e WWW-Authenticate
+                            write(response, json, HttpStatus.UNAUTHORIZED, "unauthorized", "Não autenticado",
+                                    "Envie um access token válido no cabeçalho Authorization: Bearer <token>.", request.getRequestURI());
+                        })
+                        .accessDeniedHandler((request, response, exception) -> {
+                            bearerDenied.handle(request, response, exception);
+                            write(response, json, HttpStatus.FORBIDDEN, "forbidden", "Operação não permitida",
+                                    "O seu papel não permite esta operação.", request.getRequestURI());
+                        }))
                 .build();
+    }
+
+    /** O claim {@code roles} do token vira as autoridades {@code ROLE_USER} e {@code ROLE_ADMIN}. */
+    private static JwtAuthenticationConverter rolesFromToken() {
+        var authorities = new JwtGrantedAuthoritiesConverter();
+        authorities.setAuthoritiesClaimName("roles");
+        authorities.setAuthorityPrefix("ROLE_");
+        var converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(authorities);
+        return converter;
+    }
+
+    private static void write(HttpServletResponse response, JsonMapper json, HttpStatus status, String type,
+                              String title, String detail, String instance) throws IOException {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setType(URI.create("/problems/" + type));
+        problem.setTitle(title);
+        problem.setInstance(URI.create(instance));
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        json.writeValue(response.getOutputStream(), problem);
     }
 
     /**
