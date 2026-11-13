@@ -9,12 +9,12 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.tags.Tag;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 class OpenApiConfig {
 
-    static final String USER_HEADER = "X-User-Id";
+    static final String BEARER = "bearerAuth";
     private static final String PROBLEM_JSON = "application/problem+json";
 
     @Bean
@@ -40,8 +40,9 @@ class OpenApiConfig {
                         .description("""
                                 Gestão de projetos e tarefas com fluxo de status controlado pelo domínio.
 
-                                **Autenticação provisória:** até o Dia 12 do roadmap, quem faz a requisição é \
-                                identificado pelo cabeçalho `X-User-Id` (um UUID). No Dia 12 ele dá lugar ao JWT.
+                                **Autenticação:** faça login em `POST /api/v1/auth/login` e envie o `accessToken` \
+                                no cabeçalho `Authorization: Bearer <token>`. Ele vale 15 minutos; para um par novo, \
+                                use o `refreshToken` em `POST /api/v1/auth/refresh`.
 
                                 **Erros:** todas as respostas de erro usam ProblemDetail (RFC 9457), com \
                                 `type`, `title`, `status`, `detail` e `instance`.""")
@@ -52,7 +53,12 @@ class OpenApiConfig {
                 .addTagsItem(new Tag().name("Tarefas").description("Criar, listar, atribuir e mover tarefas no fluxo"))
                 .addTagsItem(new Tag().name("Etiquetas").description("Etiquetas do projeto, ligadas às tarefas (N:N)"))
                 .addTagsItem(new Tag().name("Comentários").description("Conversa registrada em cada tarefa"))
-                .components(new Components().responses(problemResponses()).addSchemas("ProblemDetail", problemSchema()));
+                .addTagsItem(new Tag().name("Administração").description("Rotas do papel ADMIN"))
+                .addSecurityItem(new SecurityRequirement().addList(BEARER))
+                .components(new Components()
+                        .addSecuritySchemes(BEARER, new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT"))
+                        .responses(problemResponses())
+                        .addSchemas("ProblemDetail", problemSchema()));
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -71,31 +77,13 @@ class OpenApiConfig {
                         .description("Só nos erros de validação: um item por campo"));
     }
 
-    /** Descreve o cabeçalho de usuário em todas as operações que o usam, sem repetir o texto em cada controller. */
-    @Bean
-    OpenApiCustomizer userHeaderCustomizer() {
-        return openApi -> openApi.getPaths().values().forEach(path -> path.readOperations().forEach(operation -> {
-            if (operation.getParameters() == null) {
-                return;
-            }
-            operation.getParameters().stream()
-                    .filter(parameter -> USER_HEADER.equals(parameter.getName()) && "header".equals(parameter.getIn()))
-                    .forEach(OpenApiConfig::describeUserHeader);
-        }));
-    }
-
-    private static void describeUserHeader(Parameter parameter) {
-        parameter.description("Id do usuário que faz a requisição. Provisório: o JWT substitui este cabeçalho no Dia 12.")
-                .example("3f6c1a52-7c1e-4b7e-9a51-0d9b2f1e8c11");
-    }
-
     private static Map<String, ApiResponse> problemResponses() {
         Map<String, ApiResponse> responses = new LinkedHashMap<>();
         responses.put("BadRequest", problem("Dados inválidos: corpo mal formado, campo fora da regra ou parâmetro desconhecido",
                 400, "validation", "Dados inválidos", "Um ou mais campos não passaram na validação."));
-        responses.put("Unauthorized", problem("E-mail ou senha não conferem (a mensagem não diz qual dos dois)",
-                401, "invalid-credentials", "Credenciais inválidas", "E-mail ou senha inválidos."));
-        responses.put("Forbidden", problem("Quem chamou não é membro do projeto ou não pode fazer esta operação",
+        responses.put("Unauthorized", problem("Sem access token válido, ou e-mail e senha que não conferem",
+                401, "unauthorized", "Não autenticado", "Envie um access token válido no cabeçalho Authorization: Bearer <token>."));
+        responses.put("Forbidden", problem("Quem chamou não é membro do projeto ou não tem o papel exigido",
                 403, "forbidden", "Operação não permitida", "O usuário não é membro do projeto."));
         responses.put("NotFound", problem("Projeto ou tarefa não encontrado",
                 404, "not-found", "Recurso não encontrado", "Tarefa 6a1f... não encontrada."));

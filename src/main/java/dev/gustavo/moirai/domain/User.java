@@ -22,22 +22,28 @@ public final class User {
     private final String email;
     private final String name;
     private final String passwordHash;
+    private final Role role;
     private final Instant createdAt;
 
-    private User(UserId id, String email, String name, String passwordHash, Instant createdAt) {
+    private User(UserId id, String email, String name, String passwordHash, Role role, Instant createdAt) {
         this.id = Objects.requireNonNull(id, "id");
         this.email = normalizeEmail(email);
         this.name = validateName(name);
         this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash");
+        this.role = Objects.requireNonNull(role, "role");
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
     }
 
     public static User register(String email, String name, String passwordHash, Instant now) {
-        return new User(UserId.newId(), email, name, passwordHash, now);
+        return register(email, name, passwordHash, Role.USER, now);
     }
 
-    public static User restore(UserId id, String email, String name, String passwordHash, Instant createdAt) {
-        return new User(id, email, name, passwordHash, createdAt);
+    public static User register(String email, String name, String passwordHash, Role role, Instant now) {
+        return new User(UserId.newId(), email, name, passwordHash, role, now);
+    }
+
+    public static User restore(UserId id, String email, String name, String passwordHash, Role role, Instant createdAt) {
+        return new User(id, email, name, passwordHash, role, createdAt);
     }
 
     /** Forma canônica do e-mail: sem espaços nas pontas e em minúsculas. É assim que ele é gravado e buscado. */
@@ -77,6 +83,10 @@ public final class User {
 
     public String passwordHash() {
         return passwordHash;
+    }
+
+    public Role role() {
+        return role;
     }
 
     public Instant createdAt() {

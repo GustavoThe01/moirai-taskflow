@@ -42,18 +42,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** API de tarefas. O usuário vem do cabeçalho {@code X-User-Id} apenas até o Dia 12. */
+/** API de tarefas. O usuário é o dono do access token, recebido pelo parâmetro {@link CurrentUser}. */
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "Tarefas")
 class TaskController {
 
-    private static final String USER_HEADER = "X-User-Id";
 
     private final CreateTask createTask;
     private final MoveTask moveTask;
@@ -129,7 +127,7 @@ class TaskController {
     @ApiResponse(responseCode = "400", ref = "BadRequest")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    PageResponse<TaskResponse> list(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID projectId,
+    PageResponse<TaskResponse> list(@CurrentUser UserId user, @PathVariable UUID projectId,
                                     @Parameter(description = "Só as tarefas neste status")
                                     @RequestParam(required = false) TaskStatus status,
                                     @Parameter(description = "Só as tarefas com esta prioridade")
@@ -149,7 +147,7 @@ class TaskController {
                                     @RequestParam(defaultValue = "createdAt") String sort) {
         Filter filter = new Filter(status, priority, assigneeId == null ? null : new UserId(assigneeId), dueFrom, dueTo);
         PageRequest request = pageRequest(page, size, sort);
-        return PageResponse.from(listTasks.list(new ProjectId(projectId), filter, request, new UserId(user))
+        return PageResponse.from(listTasks.list(new ProjectId(projectId), filter, request, user)
                 .map(TaskResponse::from));
     }
 
@@ -180,10 +178,10 @@ class TaskController {
     @ApiResponse(responseCode = "400", ref = "BadRequest")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    ResponseEntity<TaskResponse> create(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID projectId,
+    ResponseEntity<TaskResponse> create(@CurrentUser UserId user, @PathVariable UUID projectId,
                                         @Valid @RequestBody CreateTaskRequest request) {
         NewTask newTask = new NewTask(request.title(), request.description(), request.priority(), request.dueDate());
-        Task task = createTask.create(new ProjectId(projectId), newTask, new UserId(user));
+        Task task = createTask.create(new ProjectId(projectId), newTask, user);
         return ResponseEntity.created(URI.create("/api/v1/tasks/" + task.id())).body(TaskResponse.from(task));
     }
 
@@ -195,9 +193,9 @@ class TaskController {
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
     @ApiResponse(responseCode = "422", ref = "UnprocessableContent")
-    TaskResponse move(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
+    TaskResponse move(@CurrentUser UserId user, @PathVariable UUID id,
                       @Valid @RequestBody MoveTaskRequest request) {
-        return TaskResponse.from(moveTask.move(new TaskId(id), request.status(), new UserId(user)));
+        return TaskResponse.from(moveTask.move(new TaskId(id), request.status(), user));
     }
 
     @PutMapping("/tasks/{id}/labels")
@@ -208,10 +206,10 @@ class TaskController {
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
     @ApiResponse(responseCode = "422", ref = "UnprocessableContent")
-    TaskResponse relabel(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
+    TaskResponse relabel(@CurrentUser UserId user, @PathVariable UUID id,
                          @Valid @RequestBody RelabelTaskRequest request) {
         Set<LabelId> labels = request.labelIds().stream().map(LabelId::new).collect(Collectors.toSet());
-        return TaskResponse.from(relabelTask.relabel(new TaskId(id), labels, new UserId(user)));
+        return TaskResponse.from(relabelTask.relabel(new TaskId(id), labels, user));
     }
 
     @PatchMapping("/tasks/{id}/assignee")
@@ -220,8 +218,8 @@ class TaskController {
     @ApiResponse(responseCode = "400", ref = "BadRequest")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    TaskResponse assign(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID id,
+    TaskResponse assign(@CurrentUser UserId user, @PathVariable UUID id,
                         @Valid @RequestBody AssignTaskRequest request) {
-        return TaskResponse.from(assignTask.assign(new TaskId(id), new UserId(request.assigneeId()), new UserId(user)));
+        return TaskResponse.from(assignTask.assign(new TaskId(id), new UserId(request.assigneeId()), user));
     }
 }

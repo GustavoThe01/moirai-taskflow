@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Etiquetas")
 class LabelController {
 
-    private static final String USER_HEADER = "X-User-Id";
 
     private final CreateLabel createLabel;
     private final ListLabels listLabels;
@@ -60,9 +58,9 @@ class LabelController {
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
     @ApiResponse(responseCode = "422", ref = "UnprocessableContent")
-    LabelResponse create(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID projectId,
+    LabelResponse create(@CurrentUser UserId user, @PathVariable UUID projectId,
                          @Valid @RequestBody CreateLabelRequest request) {
-        return LabelResponse.from(createLabel.create(new ProjectId(projectId), request.name(), request.color(), new UserId(user)));
+        return LabelResponse.from(createLabel.create(new ProjectId(projectId), request.name(), request.color(), user));
     }
 
     @GetMapping
@@ -70,7 +68,7 @@ class LabelController {
     @ApiResponse(responseCode = "200", description = "Etiquetas do projeto")
     @ApiResponse(responseCode = "403", ref = "Forbidden")
     @ApiResponse(responseCode = "404", ref = "NotFound")
-    List<LabelResponse> list(@RequestHeader(USER_HEADER) UUID user, @PathVariable UUID projectId) {
-        return listLabels.list(new ProjectId(projectId), new UserId(user)).stream().map(LabelResponse::from).toList();
+    List<LabelResponse> list(@CurrentUser UserId user, @PathVariable UUID projectId) {
+        return listLabels.list(new ProjectId(projectId), user).stream().map(LabelResponse::from).toList();
     }
 }

@@ -1,5 +1,6 @@
 package dev.gustavo.moirai.adapter.out.persistence;
 
+import dev.gustavo.moirai.adapter.in.web.TestUsers;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,8 +29,6 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @DisplayName("Auditoria e exclusão lógica")
 class AuditAndSoftDeleteTest {
 
-    private static final String USER = "X-User-Id";
-
     @Autowired
     private MockMvc mvc;
 
@@ -39,7 +38,7 @@ class AuditAndSoftDeleteTest {
     private final String owner = UUID.randomUUID().toString();
 
     private String send(MockHttpServletRequestBuilder request, String body) throws Exception {
-        return mvc.perform(request.header(USER, owner).contentType(MediaType.APPLICATION_JSON).content(body))
+        return mvc.perform(request.with(TestUsers.as(owner)).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andReturn().getResponse().getHeader("Location");
     }
 
@@ -58,7 +57,7 @@ class AuditAndSoftDeleteTest {
         assertThat(created.get("created_at")).isNotNull();
         assertThat(created.get("updated_by")).isEqualTo(owner);
 
-        mvc.perform(put(project).header(USER, owner).contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"Auditoria 2\"}"))
+        mvc.perform(put(project).with(TestUsers.as(owner)).contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"Auditoria 2\"}"))
                 .andExpect(status().isOk());
 
         Map<String, Object> renamed = projectRow(project);
@@ -72,7 +71,7 @@ class AuditAndSoftDeleteTest {
     void auditsTask() throws Exception {
         String project = send(post("/api/v1/projects"), "{\"name\": \"Tarefas auditadas\"}");
         String task = send(post(project + "/tasks"), "{\"title\": \"Auditar\", \"priority\": \"LOW\"}");
-        mvc.perform(patch(task + "/assignee").header(USER, owner).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch(task + "/assignee").with(TestUsers.as(owner)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"assigneeId\": \"%s\"}".formatted(owner))).andExpect(status().isOk());
 
         String id = task.substring(task.lastIndexOf('/') + 1);
@@ -87,13 +86,13 @@ class AuditAndSoftDeleteTest {
         String project = send(post("/api/v1/projects"), "{\"name\": \"Vai sumir\"}");
         String task = send(post(project + "/tasks"), "{\"title\": \"Tarefa órfã\", \"priority\": \"LOW\"}");
 
-        mvc.perform(delete(project).header(USER, owner)).andExpect(status().isNoContent());
+        mvc.perform(delete(project).with(TestUsers.as(owner))).andExpect(status().isNoContent());
 
-        mvc.perform(get(project).header(USER, owner)).andExpect(status().isNotFound());
-        mvc.perform(get(project + "/tasks").header(USER, owner)).andExpect(status().isNotFound());
-        mvc.perform(patch(task + "/status").header(USER, owner).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(get(project).with(TestUsers.as(owner))).andExpect(status().isNotFound());
+        mvc.perform(get(project + "/tasks").with(TestUsers.as(owner))).andExpect(status().isNotFound());
+        mvc.perform(patch(task + "/status").with(TestUsers.as(owner)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\": \"IN_PROGRESS\"}")).andExpect(status().isNotFound());
-        String listed = mvc.perform(get("/api/v1/projects").header(USER, owner)).andReturn().getResponse().getContentAsString();
+        String listed = mvc.perform(get("/api/v1/projects").with(TestUsers.as(owner))).andReturn().getResponse().getContentAsString();
         assertThat(listed).doesNotContain("Vai sumir");
 
         assertThat(projectRow(project).get("deleted_at")).isNotNull();
@@ -105,10 +104,10 @@ class AuditAndSoftDeleteTest {
     @DisplayName("excluir de novo não muda a data da primeira exclusão")
     void deleteTwice() throws Exception {
         String project = send(post("/api/v1/projects"), "{\"name\": \"Duas vezes\"}");
-        mvc.perform(delete(project).header(USER, owner)).andExpect(status().isNoContent());
+        mvc.perform(delete(project).with(TestUsers.as(owner))).andExpect(status().isNoContent());
         Object firstDeletion = projectRow(project).get("deleted_at");
 
-        mvc.perform(delete(project).header(USER, owner)).andExpect(status().isNotFound());
+        mvc.perform(delete(project).with(TestUsers.as(owner))).andExpect(status().isNotFound());
 
         assertThat(projectRow(project).get("deleted_at")).isEqualTo(firstDeletion);
     }

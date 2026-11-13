@@ -55,7 +55,7 @@
 - [x] Cadastro e login, senha com BCrypt, Spring Security básico
 
 ### Dia 12 — JWT
-- [ ] Access + refresh token, filtro de autenticação, roles
+- [x] Access + refresh token, filtro de autenticação, roles
 
 ### Dia 13 — Autorização por recurso
 - [ ] Só membros acessam o projeto (`@PreAuthorize` / verificação no caso de uso)

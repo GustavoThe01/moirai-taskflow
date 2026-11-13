@@ -1,36 +1,51 @@
 package dev.gustavo.moirai.adapter.in.web;
 
-import dev.gustavo.moirai.application.port.in.UserUseCases.AuthenticateUser;
+import dev.gustavo.moirai.application.port.in.SessionUseCases.EndSession;
+import dev.gustavo.moirai.application.port.in.SessionUseCases.RefreshSession;
+import dev.gustavo.moirai.application.port.in.SessionUseCases.Session;
+import dev.gustavo.moirai.application.port.in.SessionUseCases.StartSession;
 import dev.gustavo.moirai.application.port.in.UserUseCases.RegisterUser;
 import dev.gustavo.moirai.domain.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Cadastro e login. São as únicas rotas que nunca vão exigir autenticação. */
+/** Cadastro, login, renovação e logout. São as únicas rotas da API que não exigem access token. */
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Autenticação")
+@SecurityRequirements
 class AuthController {
 
     private final RegisterUser registerUser;
-    private final AuthenticateUser authenticateUser;
+    private final StartSession startSession;
+    private final RefreshSession refreshSession;
+    private final EndSession endSession;
+    private final Clock clock;
 
-    AuthController(RegisterUser registerUser, AuthenticateUser authenticateUser) {
+    AuthController(RegisterUser registerUser, StartSession startSession, RefreshSession refreshSession,
+                   EndSession endSession, Clock clock) {
         this.registerUser = registerUser;
-        this.authenticateUser = authenticateUser;
+        this.startSession = startSession;
+        this.refreshSession = refreshSession;
+        this.endSession = endSession;
+        this.clock = clock;
     }
 
     record RegisterRequest(
@@ -55,11 +70,29 @@ class AuthController {
         }
     }
 
+    record RefreshRequest(@Schema(description = "O refresh token recebido no login ou na última renovação") @NotBlank String refreshToken) {
+
+        @Override
+        public String toString() {
+            return "RefreshRequest[***]";
+        }
+    }
+
     /** O que a API devolve de um usuário: nunca o hash da senha. */
-    record UserResponse(UUID id, String email, String name, Instant createdAt) {
+    record UserResponse(UUID id, String email, String name, String role, Instant createdAt) {
 
         static UserResponse from(User user) {
-            return new UserResponse(user.id().value(), user.email(), user.name(), user.createdAt());
+            return new UserResponse(user.id().value(), user.email(), user.name(), user.role().name(), user.createdAt());
+        }
+    }
+
+    /** Resposta no formato do OAuth 2.0 (RFC 6749): {@code expiresIn} em segundos. */
+    record TokenResponse(String accessToken, String tokenType, long expiresIn, String refreshToken,
+                         long refreshExpiresIn, UserResponse user) {
+
+        @Override
+        public String toString() {
+            return "TokenResponse[user=%s]".formatted(user);
         }
     }
 
@@ -74,12 +107,40 @@ class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Confere e-mail e senha",
-            description = "Por enquanto devolve os dados do usuário. No Dia 12, devolve os tokens JWT.")
+    @Operation(summary = "Faz login e devolve o par de tokens",
+            description = "O access token (JWT, 15 minutos) vai no cabeçalho Authorization: Bearer. "
+                    + "O refresh token (7 dias, uso único) só serve para pedir um par novo em /auth/refresh.")
     @ApiResponse(responseCode = "200", description = "Credenciais corretas")
     @ApiResponse(responseCode = "400", ref = "BadRequest")
     @ApiResponse(responseCode = "401", ref = "Unauthorized")
-    UserResponse login(@Valid @RequestBody LoginRequest request) {
-        return UserResponse.from(authenticateUser.authenticate(request.email(), request.password()));
+    TokenResponse login(@Valid @RequestBody LoginRequest request) {
+        return toResponse(startSession.login(request.email(), request.password()));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Troca o refresh token por um par novo",
+            description = "O refresh token usado deixa de valer. Se um token já usado aparecer de novo, a sessão inteira é encerrada.")
+    @ApiResponse(responseCode = "200", description = "Par novo")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "401", ref = "Unauthorized")
+    TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return toResponse(refreshSession.refresh(request.refreshToken()));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Encerra a sessão", description = "Revoga o refresh token e os outros da mesma sessão. Sempre 204.")
+    @ApiResponse(responseCode = "204", description = "Sessão encerrada")
+    ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
+        endSession.logout(request.refreshToken());
+        return ResponseEntity.noContent().build();
+    }
+
+    private TokenResponse toResponse(Session session) {
+        var now = clock.instant();
+        return new TokenResponse(session.accessToken(), "Bearer",
+                Duration.between(now, session.accessTokenExpiresAt()).toSeconds(),
+                session.refreshToken(),
+                Duration.between(now, session.refreshTokenExpiresAt()).toSeconds(),
+                UserResponse.from(session.user()));
     }
 }
