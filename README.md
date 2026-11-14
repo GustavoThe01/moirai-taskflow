@@ -16,8 +16,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Versão](https://img.shields.io/badge/versão-0.2.0-7e22ce?style=flat-square)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_13_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-193_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_14_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-200_passando-15803d?style=flat-square)
 
 </div>
 
@@ -247,7 +247,7 @@ stateDiagram-v2
 | **Autenticação** | JWT de curta duração (access) + refresh token ✅ |
 | **Autorização** | Por papel (`USER`, `ADMIN`) e **por recurso**: só membros acessam o projeto ✅ |
 | **Erros** | `401` sem token válido, `403` sem permissão, sem vazar detalhes internos |
-| **Segredos** | Variáveis de ambiente por profile (`dev`, `test`, `prod`), nada no repositório |
+| **Segredos** | Variáveis de ambiente por profile (`dev`, `test`, `prod`), nada no repositório ✅ |
 | **Abuso** | Rate limiting por usuário (Bucket4j) |
 
 ### O que já está pronto (Dia 11)
@@ -433,7 +433,7 @@ Os quatro testes estão em [`AuditAndSoftDeleteTest`](src/test/java/dev/gustavo/
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
 | 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪🟪🟪 |
-| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | 🟪🟪🟪⬜⬜ |
+| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | 🟪🟪🟪🟪⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
 Detalhes no [ROADMAP.md](ROADMAP.md) · Mudanças no [CHANGELOG.md](CHANGELOG.md).
@@ -466,7 +466,51 @@ curl http://localhost:8080/actuator/health
 
 Resposta esperada: `{"groups":["liveness","readiness"],"status":"UP"}`
 
-Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e aplica as migrations.
+Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e aplica as migrations. Sem profile
+informado, a aplicação sobe em `dev`.
+
+### Configuração por ambiente
+
+| Profile | Arquivo | Banco | Chave do JWT | Documentação da API | Logs |
+|---|---|---|---|---|---|
+| `dev` (padrão) | [`application-dev.yml`](src/main/resources/application-dev.yml) | `moirai.db` na raiz | `MOIRAI_JWT_SECRET`, ou uma temporária a cada execução | Aberta | Texto, `DEBUG` no código do projeto |
+| `test` | `src/test/resources/application-test.yml` | `target/moirai-test.db` | Temporária | Aberta | Texto |
+| `prod` | [`application-prod.yml`](src/main/resources/application-prod.yml) | `MOIRAI_DB_URL` (obrigatória) | `MOIRAI_JWT_SECRET` (obrigatória) | Fechada (404) | JSON no formato ECS |
+
+Nada sensível fica num arquivo do repositório. Os segredos vêm de variáveis de ambiente, listadas em
+[`.env.example`](.env.example). Para subir em `prod`:
+
+```bash
+export SPRING_PROFILES_ACTIVE=prod
+export MOIRAI_DB_URL="jdbc:sqlite:/dados/moirai.db?foreign_keys=on"
+export MOIRAI_JWT_SECRET="$(openssl rand -base64 32)"
+java -jar target/moirai-taskflow-0.3.0-SNAPSHOT.jar
+```
+
+**A configuração é conferida na partida.** As opções de segurança são um `@ConfigurationProperties` validado
+([`SecurityProperties`](src/main/java/dev/gustavo/moirai/config/SecurityProperties.java)): chave que não é Base64 ou tem
+menos de 32 bytes, access token fora de 1 minuto a 1 hora, ou refresh token mais curto que o access token derrubam a
+aplicação ao subir, com a mensagem do campo. No `prod`, um `EnvironmentPostProcessor`
+([`RequiredProdSettings`](src/main/java/dev/gustavo/moirai/config/RequiredProdSettings.java)) confere as variáveis antes
+de qualquer bean ser criado. Antes dele, a falta de `MOIRAI_DB_URL` aparecia só como `'url' must start with "jdbc"`,
+vinda do pool de conexões. Saída real do jar em `prod`, sem as variáveis:
+
+```text
+O profile prod precisa das variáveis de ambiente: MOIRAI_DB_URL, MOIRAI_JWT_SECRET. Veja o .env.example.
+```
+
+Com elas, a aplicação sobe, o `/actuator/health` responde `UP`, o `/v3/api-docs` responde `404`, e cada linha de log
+sai em JSON:
+
+```json
+{"@timestamp":"2026-11-14T18:10:21.302191900Z","log":{"level":"INFO","logger":"dev.gustavo.moirai.MoiraiApplication"},"service":{"name":"moirai-taskflow","version":"0.3.0-SNAPSHOT"},"message":"Started MoiraiApplication in 14.944 seconds (process running for 16.05)","ecs":{"version":"8.11"}}
+```
+
+<sub>Linha encurtada: o original também traz o processo e a thread.</sub>
+
+O [`ProfilesTest`](src/test/java/dev/gustavo/moirai/config/ProfilesTest.java) sobe a aplicação de verdade em cada
+profile, numa porta aleatória e com um banco temporário, e confere tudo isso: `dev` como padrão, `prod` recusando subir
+sem cada variável, a documentação fechada em `prod`, e as validações da chave e dos tempos dos tokens.
 
 > 🐳 A partir do Dia 15: `docker compose up` sobe a API com PostgreSQL.
 > 📘 Documentação interativa em `http://localhost:8080/swagger-ui.html` e o contrato OpenAPI em `http://localhost:8080/v3/api-docs`. Cada endpoint tem descrição, exemplos e os erros possíveis, todos no formato ProblemDetail.
@@ -494,6 +538,7 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 | Auditoria e exclusão lógica | `@SpringBootTest` + MockMvc, conferindo as colunas direto no banco | ✅ 4 testes |
 | Usuários e login | `@SpringBootTest` + MockMvc com BCrypt real, e o caso de uso com mocks | ✅ 23 testes (domínio, caso de uso e API) |
 | JWT | Ciclo real: login, token nas rotas, adulterado, vencido, de outro emissor, rotação, reutilização, logout e papel `ADMIN` | ✅ 6 testes de ponta a ponta + 5 do caso de uso |
+| Profiles e configuração | A aplicação de verdade em `dev` e `prod`, com as variáveis obrigatórias, a documentação fechada e as validações | ✅ 7 testes |
 | Autorização por recurso | Usuários e tokens reais: membros, dono, `ADMIN` sem acesso aos projetos, e a matriz `401` × `403` nas 14 rotas do projeto | ✅ 33 testes de ponta a ponta + 5 do caso de uso |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
 | Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
@@ -522,9 +567,10 @@ moirai-taskflow/
 │   │   ├── out/persistence/                 # ✅ entidades JPA, mapper, adapters, Specifications
 │   │   └── out/security/                    # ✅ hash de senha com BCrypt e emissão do JWT
 │   └── config/                              # ✅ relógio, OpenAPI, auditoria e Spring Security
-├── src/main/resources/application.yml       # ✅ configuração, datasource e Actuator
+├── src/main/resources/application*.yml      # ✅ configuração comum e os profiles dev e prod
 ├── src/main/resources/db/migration/         # ✅ migrations do Flyway
 ├── src/test/java/...                        # ✅ testes de domínio, contexto e persistência
+├── .env.example                             # ✅ variáveis do profile prod, sem valores
 ├── requests.http                            # ✅ exemplos de chamadas à API
 ├── pom.xml
 ├── mvnw · mvnw.cmd
@@ -551,7 +597,8 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] Usuários: cadastro, login e senha com BCrypt (Dia 11)
 - [x] JWT com access e refresh token, rotação e papéis (Dia 12)
 - [x] Autorização por recurso e gerenciamento de membros (Dia 13)
-- [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`
+- [x] Profiles `dev`, `test` e `prod`, com segredos por variável de ambiente (Dia 14)
+- [ ] Docker com PostgreSQL (Dia 15) → `v0.3.0`
 - [ ] Eventos, cache, rate limiting, observabilidade (Dias 16–18)
 - [ ] ArchUnit, JaCoCo, SonarCloud e release final (Dias 19–20) → `v1.0.0`
 

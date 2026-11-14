@@ -7,7 +7,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -21,29 +21,26 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 /**
  * Chave, emissor e decodificador do JWT.
  *
- * <p>A chave HMAC vem de {@code moirai.security.jwt-secret} (Base64, pelo menos 32 bytes), definida por variável de
- * ambiente e nunca no repositório. Sem ela, gero uma chave aleatória a cada execução e aviso no log: serve para rodar
- * e testar, mas os tokens deixam de valer quando a aplicação reinicia. No Dia 14, o profile {@code prod} vai exigir
- * a chave.
+ * <p>A chave HMAC vem de {@code moirai.security.jwt-secret}, preenchida pela variável de ambiente
+ * {@code MOIRAI_JWT_SECRET} e nunca pelo repositório. Nos profiles {@code dev} e {@code test}, sem ela, gero uma chave
+ * aleatória a cada execução e aviso no log. No profile {@code prod}, a aplicação não sobe sem ela.
  */
 @Configuration
+@EnableConfigurationProperties(SecurityProperties.class)
 class JwtConfig {
 
     private static final Logger LOG = LoggerFactory.getLogger(JwtConfig.class);
-    private static final int MIN_KEY_BYTES = 32;
 
+    /** A chave já chega validada pelo {@link SecurityProperties}: vazia (fora de prod) ou Base64 com 32 bytes ou mais. */
     @Bean
-    SecretKey jwtSigningKey(@Value("${moirai.security.jwt-secret:}") String secret) {
+    SecretKey jwtSigningKey(SecurityProperties security) {
         byte[] bytes;
-        if (secret.isBlank()) {
-            bytes = new byte[MIN_KEY_BYTES];
+        if (security.jwtSecret().isEmpty()) {
+            bytes = new byte[SecurityProperties.MIN_KEY_BYTES];
             new SecureRandom().nextBytes(bytes);
-            LOG.warn("moirai.security.jwt-secret não configurada: usando uma chave temporária. Tokens não sobrevivem a um restart.");
+            LOG.warn("MOIRAI_JWT_SECRET não configurada: usando uma chave temporária. Tokens não sobrevivem a um restart.");
         } else {
-            bytes = Base64.getDecoder().decode(secret.strip());
-            if (bytes.length < MIN_KEY_BYTES) {
-                throw new IllegalStateException("moirai.security.jwt-secret precisa ter pelo menos %d bytes.".formatted(MIN_KEY_BYTES));
-            }
+            bytes = Base64.getDecoder().decode(security.jwtSecret());
         }
         return new SecretKeySpec(bytes, "HmacSHA256");
     }
@@ -55,7 +52,8 @@ class JwtConfig {
 
     /** Confere assinatura (só HS256), validade com a tolerância padrão de 60 s e o emissor. */
     @Bean
-    JwtDecoder jwtDecoder(SecretKey jwtSigningKey, @Value("${moirai.security.issuer:moirai-taskflow}") String issuer) {
+    JwtDecoder jwtDecoder(SecretKey jwtSigningKey, SecurityProperties security) {
+        String issuer = security.issuer();
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSigningKey).macAlgorithm(MacAlgorithm.HS256).build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(issuer)));
         return decoder;

@@ -1,0 +1,27 @@
+# Profile de produção. Nada sensível fica neste arquivo: tudo vem de variável de ambiente.
+#   MOIRAI_DB_URL      obrigatória (no Dia 15, a URL do PostgreSQL)
+#   MOIRAI_JWT_SECRET  obrigatória (Base64, pelo menos 32 bytes)
+#   MOIRAI_ADMIN_EMAILS opcional (e-mails separados por vírgula que nascem com o papel ADMIN)
+spring:
+  datasource:
+    url: ${MOIRAI_DB_URL}
+
+moirai:
+  security:
+    require-jwt-secret: true
+
+# A documentação interativa não fica exposta em produção; o contrato continua no repositório e no ambiente de dev.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# Logs em JSON (formato ECS), um por linha, prontos para uma ferramenta de busca de logs.
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        version: "@project.version@"

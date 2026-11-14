@@ -38,7 +38,7 @@ class UserService implements RegisterUser, AuthenticateUser {
 
     @Autowired
     UserService(UserRepository users, PasswordHasher hasher, Clock clock,
-                @Value("${moirai.security.admin-emails:}") List<String> adminEmails) {
+                @Value("${moirai.security.admin-emails}") List<String> adminEmails) {
         this.users = users;
         this.hasher = hasher;
         this.clock = clock;

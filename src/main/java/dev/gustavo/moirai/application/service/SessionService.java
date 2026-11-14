@@ -45,7 +45,7 @@ class SessionService implements StartSession, RefreshSession, EndSession, ListUs
 
     SessionService(AuthenticateUser authenticateUser, UserRepository users, AccessTokenIssuer accessTokens,
                    RefreshTokenRepository refreshTokens, Clock clock,
-                   @Value("${moirai.security.refresh-token-lifetime:P7D}") Duration refreshTokenLifetime) {
+                   @Value("${moirai.security.refresh-token-lifetime}") Duration refreshTokenLifetime) {
         this.authenticateUser = authenticateUser;
         this.users = users;
         this.accessTokens = accessTokens;
