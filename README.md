@@ -16,8 +16,8 @@ cache, observabilidade e testes em todas as camadas, do domínio puro à API com
 ![Hibernate](https://img.shields.io/badge/JPA-Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-planejado-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Versão](https://img.shields.io/badge/versão-0.2.0-7e22ce?style=flat-square)
-![Roadmap](https://img.shields.io/badge/roadmap-dia_12_de_20-7e22ce?style=flat-square)
-![Testes](https://img.shields.io/badge/testes-155_passando-15803d?style=flat-square)
+![Roadmap](https://img.shields.io/badge/roadmap-dia_13_de_20-7e22ce?style=flat-square)
+![Testes](https://img.shields.io/badge/testes-193_passando-15803d?style=flat-square)
 
 </div>
 
@@ -132,7 +132,9 @@ Escolhi o nome porque toda tarefa tem o mesmo destino: ela **nasce** (é criada)
 | `GET` | `/api/v1/projects/{id}` | Detalhe do projeto | ✅ 04 |
 | `PUT` | `/api/v1/projects/{id}` | Renomeia o projeto (só o dono) | ✅ 04 |
 | `DELETE` | `/api/v1/projects/{id}` | Exclui o projeto (só o dono); exclusão lógica desde o Dia 10 | ✅ 04 |
-| `POST` | `/api/v1/projects/{id}/members` | Adiciona membro | 13 |
+| `GET` | `/api/v1/projects/{id}/members` | Lista os membros, com nome e e-mail | ✅ 13 |
+| `POST` | `/api/v1/projects/{id}/members` | Adiciona membro pelo e-mail (só o dono) | ✅ 13 |
+| `DELETE` | `/api/v1/projects/{id}/members/{userId}` | Remove membro (só o dono; o dono não sai) | ✅ 13 |
 | `GET` | `/api/v1/projects/{id}/tasks` | Lista tarefas com filtros, ordenação e paginação | ✅ 06 |
 | `POST` | `/api/v1/projects/{id}/tasks` | Cria tarefa | ✅ 05 |
 | `PATCH` | `/api/v1/tasks/{id}/status` | Move a tarefa no fluxo | ✅ 05 |
@@ -243,7 +245,7 @@ stateDiagram-v2
 |---|---|
 | **Senhas** | BCrypt, nunca em texto puro ✅ |
 | **Autenticação** | JWT de curta duração (access) + refresh token ✅ |
-| **Autorização** | Por papel (`USER`, `ADMIN`) e **por recurso**: só membros acessam o projeto |
+| **Autorização** | Por papel (`USER`, `ADMIN`) e **por recurso**: só membros acessam o projeto ✅ |
 | **Erros** | `401` sem token válido, `403` sem permissão, sem vazar detalhes internos |
 | **Segredos** | Variáveis de ambiente por profile (`dev`, `test`, `prod`), nada no repositório |
 | **Abuso** | Rate limiting por usuário (Bucket4j) |
@@ -309,6 +311,34 @@ Decisões que tomei:
 Não entraram. No SQLite, acrescentar uma chave estrangeira exige recriar a tabela, e seriam cinco tabelas
 (`project`, `project_member`, `task`, `comment` e `task_label`) só para depois recriar tudo de novo no PostgreSQL do
 Dia 15. Elas entram na migração para o PostgreSQL, onde `ALTER TABLE ... ADD CONSTRAINT` funciona direto.
+
+### Autorização por recurso: cada projeto com os seus membros (Dia 13)
+
+Saber quem é a pessoa (o token) não basta: o que ela pode fazer depende do projeto. Há dois tipos de regra, e cada
+um ficou num lugar diferente:
+
+| Regra | Depende de | Onde fica | Exemplo |
+|---|---|---|---|
+| **Por papel** | Só do token | `@PreAuthorize("hasRole('ADMIN')")` no método do controller | `GET /api/v1/admin/users` |
+| **Por recurso** | Do projeto (quem é dono, quem é membro) | No domínio, em `Project.requireMember` e `requireOwner`, chamados pelos casos de uso | Ver, renomear, excluir, criar tarefa, comentar |
+
+Por que a regra de membro não virou `@PreAuthorize`: para saber se alguém é membro é preciso carregar o projeto, e
+quem carrega o projeto é o caso de uso. Uma expressão no controller teria de buscar o projeto de novo, e a regra
+ficaria espalhada entre a anotação e o domínio. Assim, o domínio continua sendo a única fonte da regra, e ela vale
+para qualquer porta de entrada, inclusive uma que não seja HTTP.
+
+**Membros.** O dono adiciona alguém pelo e-mail (a pessoa precisa ter conta), lista os membros e remove quem não
+participa mais. Duas decisões:
+
+- **A permissão vem antes da busca do e-mail.** Quem não é dono recebe `403` sem a API procurar o e-mail. Se a busca
+  viesse antes, um `404` para "e-mail sem conta" revelaria a qualquer usuário quais e-mails têm conta.
+- **O papel `ADMIN` não abre projetos.** Administrar o sistema (listar usuários) é diferente de participar de um
+  projeto. Um administrador que não é membro recebe `403`, como qualquer pessoa.
+
+**A matriz de segurança.** O [`ResourceAuthorizationTest`](src/test/java/dev/gustavo/moirai/adapter/in/web/ResourceAuthorizationTest.java)
+usa usuários e tokens de verdade (cadastro e login pela API) e passa por todas as 14 rotas de um projeto duas vezes:
+sem token, toda rota responde `401`; com o token de alguém que não é membro, toda rota responde `403`, e o teste
+confere que o projeto e a tarefa continuam iguais. Uma rota nova que esquecer a verificação quebra o teste.
 
 ---
 
@@ -403,7 +433,7 @@ Os quatro testes estão em [`AuditAndSoftDeleteTest`](src/test/java/dev/gustavo/
 |---|---|---|:---:|---|
 | 1 | 01–05 | Fundação, domínio puro, persistência, CRUD de projetos e tarefas | `v0.1.0` | 🟪🟪🟪🟪🟪 |
 | 2 | 06–10 | Paginação, OpenAPI, testes de camada, labels/comentários, auditoria | `v0.2.0` | 🟪🟪🟪🟪🟪 |
-| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | 🟪🟪⬜⬜⬜ |
+| 3 | 11–15 | Usuários, JWT, autorização por recurso, profiles, Docker | `v0.3.0` | 🟪🟪🟪⬜⬜ |
 | 4 | 16–20 | Eventos, cache, rate limiting, observabilidade, qualidade e entrega | `v1.0.0` | ⬜⬜⬜⬜⬜ |
 
 Detalhes no [ROADMAP.md](ROADMAP.md) · Mudanças no [CHANGELOG.md](CHANGELOG.md).
@@ -464,7 +494,7 @@ Na primeira execução, o Flyway cria o banco `moirai.db` na raiz do projeto e a
 | Auditoria e exclusão lógica | `@SpringBootTest` + MockMvc, conferindo as colunas direto no banco | ✅ 4 testes |
 | Usuários e login | `@SpringBootTest` + MockMvc com BCrypt real, e o caso de uso com mocks | ✅ 23 testes (domínio, caso de uso e API) |
 | JWT | Ciclo real: login, token nas rotas, adulterado, vencido, de outro emissor, rotação, reutilização, logout e papel `ADMIN` | ✅ 6 testes de ponta a ponta + 5 do caso de uso |
-| Autorização por recurso | Membros do projeto com `401` × `403` | ⏳ Dia 13 |
+| Autorização por recurso | Usuários e tokens reais: membros, dono, `ADMIN` sem acesso aos projetos, e a matriz `401` × `403` nas 14 rotas do projeto | ✅ 33 testes de ponta a ponta + 5 do caso de uso |
 | Arquitetura | ArchUnit | ⏳ Dia 19 |
 | Cobertura | JaCoCo (meta ≥ 80%) + SonarCloud | ⏳ Dia 19 |
 
@@ -520,7 +550,7 @@ Mantenho aqui um checklist vivo do que ainda vou incrementar neste repositório.
 - [x] Auditoria e exclusão lógica (Dia 10) → `v0.2.0`
 - [x] Usuários: cadastro, login e senha com BCrypt (Dia 11)
 - [x] JWT com access e refresh token, rotação e papéis (Dia 12)
-- [ ] Autorização por recurso (Dia 13)
+- [x] Autorização por recurso e gerenciamento de membros (Dia 13)
 - [ ] Profiles e Docker com PostgreSQL (Dias 14–15) → `v0.3.0`
 - [ ] Eventos, cache, rate limiting, observabilidade (Dias 16–18)
 - [ ] ArchUnit, JaCoCo, SonarCloud e release final (Dias 19–20) → `v1.0.0`

@@ -58,8 +58,8 @@
 - [x] Access + refresh token, filtro de autenticação, roles
 
 ### Dia 13 — Autorização por recurso
-- [ ] Só membros acessam o projeto (`@PreAuthorize` / verificação no caso de uso)
-- [ ] Testes de segurança (401 vs 403)
+- [x] Só membros acessam o projeto (`@PreAuthorize` / verificação no caso de uso)
+- [x] Testes de segurança (401 vs 403)
 
 ### Dia 14 — Configuração
 - [ ] Profiles `dev`/`test`/`prod`, segredos via variáveis de ambiente

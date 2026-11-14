@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -27,11 +28,13 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li>Sem token ou com token inválido (assinatura, emissor, validade): {@code 401} com {@code WWW-Authenticate}.</li>
- *   <li>Com token válido, mas sem o papel exigido: {@code 403}.</li>
+ *   <li>Com token válido, mas sem o papel exigido ({@code @PreAuthorize} nos métodos): {@code 403}.</li>
+ *   <li>Com token válido, mas sem ser membro do projeto: {@code 403}, decidido pelo domínio, que conhece o projeto.</li>
  *   <li>As duas respostas usam ProblemDetail, como o resto da API.</li>
  * </ul>
  */
 @Configuration
+@EnableMethodSecurity
 class SecurityConfig {
 
     static final String[] PUBLIC_ROUTES = {
@@ -51,7 +54,6 @@ class SecurityConfig {
                 .authorizeHttpRequests(routes -> routes
                         .requestMatchers(PUBLIC_ROUTES).permitAll()
                         .requestMatchers(HttpMethod.GET, "/").permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(server -> server
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(rolesFromToken()))

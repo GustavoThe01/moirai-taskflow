@@ -95,7 +95,8 @@ public final class Project {
         return Collections.unmodifiableSet(members);
     }
 
-    private void requireOwner(UserId actor, String action) {
+    /** Garante que quem age é o dono. A ação entra na mensagem: "Só o dono do projeto pode {ação}." */
+    public void requireOwner(UserId actor, String action) {
         if (!ownerId.equals(actor)) {
             throw new ForbiddenOperationException("Só o dono do projeto pode %s.".formatted(action));
         }

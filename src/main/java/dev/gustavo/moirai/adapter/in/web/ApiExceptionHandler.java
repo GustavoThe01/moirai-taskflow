@@ -10,6 +10,7 @@ import dev.gustavo.moirai.domain.InvalidValueException;
 import dev.gustavo.moirai.domain.NotProjectMemberException;
 import dev.gustavo.moirai.domain.ProjectNotFoundException;
 import dev.gustavo.moirai.domain.TaskNotFoundException;
+import dev.gustavo.moirai.domain.UserNotFoundException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -36,7 +38,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    @ExceptionHandler({ProjectNotFoundException.class, TaskNotFoundException.class})
+    @ExceptionHandler({ProjectNotFoundException.class, TaskNotFoundException.class, UserNotFoundException.class})
     ProblemDetail handleNotFound(RuntimeException exception) {
         return problem(HttpStatus.NOT_FOUND, "not-found", "Recurso não encontrado", exception.getMessage());
     }
@@ -64,6 +66,12 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /** Token aceito pela assinatura, mas que não identifica um usuário (o {@code sub} não é um id válido). */
+    /** Negado pelo {@code @PreAuthorize}: o token é válido, mas o papel não basta. */
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    ProblemDetail handleRoleDenied(AuthorizationDeniedException exception) {
+        return problem(HttpStatus.FORBIDDEN, "forbidden", "Operação não permitida", "O seu papel não permite esta operação.");
+    }
+
     @ExceptionHandler(InvalidBearerTokenException.class)
     ProblemDetail handleTokenWithoutUser(InvalidBearerTokenException exception) {
         return problem(HttpStatus.UNAUTHORIZED, "unauthorized", "Não autenticado", "O access token não identifica um usuário.");

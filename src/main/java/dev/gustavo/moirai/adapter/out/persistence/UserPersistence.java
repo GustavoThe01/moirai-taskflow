@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -97,6 +98,12 @@ class UserPersistenceAdapter implements UserRepository {
     @Transactional(readOnly = true)
     public Optional<User> findById(UserId id) {
         return users.findById(id.toString()).map(UserJpaEntity::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> findAllById(Collection<UserId> ids) {
+        return users.findAllById(ids.stream().map(UserId::toString).toList()).stream().map(UserJpaEntity::toDomain).toList();
     }
 
     @Override

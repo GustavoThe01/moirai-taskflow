@@ -12,6 +12,7 @@ import dev.gustavo.moirai.application.port.in.ProjectUseCases.CreateProject;
 import dev.gustavo.moirai.application.port.in.ProjectUseCases.DeleteProject;
 import dev.gustavo.moirai.application.port.in.ProjectUseCases.GetProject;
 import dev.gustavo.moirai.application.port.in.ProjectUseCases.ListProjects;
+import dev.gustavo.moirai.application.port.in.ProjectUseCases.ManageMembers;
 import dev.gustavo.moirai.application.port.in.ProjectUseCases.RenameProject;
 import dev.gustavo.moirai.domain.ForbiddenOperationException;
 import dev.gustavo.moirai.domain.Project;
@@ -43,6 +44,9 @@ class ProjectControllerWebMvcTest {
 
     @MockitoBean
     private ListProjects listProjects;
+
+    @MockitoBean
+    private ManageMembers manageMembers;
 
     @MockitoBean
     private RenameProject renameProject;
