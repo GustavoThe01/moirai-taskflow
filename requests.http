@@ -164,3 +164,16 @@ Authorization: Bearer {{token}}
 ### Excluir projeto
 DELETE {{baseUrl}}/projects/{{projectId}}
 Authorization: Bearer {{token}}
+
+### Membros do projeto (qualquer membro vê)
+GET {{baseUrl}}/projects/{{projectId}}/members
+Authorization: Bearer {{token}}
+
+### Adicionar membro pelo e-mail (só o dono; a pessoa precisa ter conta)
+POST {{baseUrl}}/projects/{{projectId}}/members
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "bia@exemplo.com"
+}

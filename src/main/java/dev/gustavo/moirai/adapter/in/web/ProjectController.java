@@ -1,5 +1,9 @@
 package dev.gustavo.moirai.adapter.in.web;
 
+import dev.gustavo.moirai.application.port.in.ProjectUseCases.ManageMembers;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import dev.gustavo.moirai.adapter.in.web.ProjectDtos.CreateProjectRequest;
 import dev.gustavo.moirai.adapter.in.web.ProjectDtos.ProjectResponse;
 import dev.gustavo.moirai.adapter.in.web.ProjectDtos.RenameProjectRequest;
@@ -46,9 +50,11 @@ class ProjectController {
     private final ListProjects listProjects;
     private final RenameProject renameProject;
     private final DeleteProject deleteProject;
+    private final ManageMembers manageMembers;
 
     ProjectController(CreateProject createProject, GetProject getProject, ListProjects listProjects,
-                      RenameProject renameProject, DeleteProject deleteProject) {
+                      RenameProject renameProject, DeleteProject deleteProject, ManageMembers manageMembers) {
+        this.manageMembers = manageMembers;
         this.createProject = createProject;
         this.getProject = getProject;
         this.listProjects = listProjects;
@@ -102,5 +108,45 @@ class ProjectController {
     @ApiResponse(responseCode = "404", ref = "NotFound")
     void delete(@CurrentUser UserId user, @PathVariable UUID id) {
         deleteProject.delete(new ProjectId(id), user);
+    }
+
+    record AddMemberRequest(@Schema(example = "bia@exemplo.com") @NotBlank @Size(max = 254) String email) {
+    }
+
+    record MemberResponse(UUID id, String name, String email, boolean owner) {
+    }
+
+    @GetMapping("/{id}/members")
+    @Operation(summary = "Lista os membros do projeto", description = "Só membros podem ver. Ordenados pelo nome.")
+    @ApiResponse(responseCode = "200", description = "Membros do projeto")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
+    List<MemberResponse> members(@CurrentUser UserId user, @PathVariable UUID id) {
+        ProjectId projectId = new ProjectId(id);
+        UserId owner = getProject.get(projectId, user).ownerId();
+        return manageMembers.listMembers(projectId, user).stream()
+                .map(member -> new MemberResponse(member.id().value(), member.name(), member.email(), member.id().equals(owner)))
+                .toList();
+    }
+
+    @PostMapping("/{id}/members")
+    @Operation(summary = "Adiciona um membro pelo e-mail", description = "Só o dono pode adicionar. A pessoa precisa ter conta.")
+    @ApiResponse(responseCode = "200", description = "Projeto com o membro novo")
+    @ApiResponse(responseCode = "400", ref = "BadRequest")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
+    ProjectResponse addMember(@CurrentUser UserId user, @PathVariable UUID id, @Valid @RequestBody AddMemberRequest request) {
+        return ProjectResponse.from(manageMembers.addMember(new ProjectId(id), request.email(), user));
+    }
+
+    @DeleteMapping("/{id}/members/{memberId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Remove um membro", description = "Só o dono pode remover, e o dono não pode ser removido.")
+    @ApiResponse(responseCode = "204", description = "Membro removido")
+    @ApiResponse(responseCode = "403", ref = "Forbidden")
+    @ApiResponse(responseCode = "404", ref = "NotFound")
+    @ApiResponse(responseCode = "422", ref = "UnprocessableContent")
+    void removeMember(@CurrentUser UserId user, @PathVariable UUID id, @PathVariable UUID memberId) {
+        manageMembers.removeMember(new ProjectId(id), new UserId(memberId), user);
     }
 }

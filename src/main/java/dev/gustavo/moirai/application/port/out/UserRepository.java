@@ -2,6 +2,7 @@ package dev.gustavo.moirai.application.port.out;
 
 import dev.gustavo.moirai.domain.User;
 import dev.gustavo.moirai.domain.UserId;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +17,9 @@ public interface UserRepository {
     boolean existsByEmail(String normalizedEmail);
 
     Optional<User> findById(UserId id);
+
+    /** Os usuários encontrados; ids sem conta simplesmente não voltam. */
+    List<User> findAllById(Collection<UserId> ids);
 
     /** Todos os usuários, na ordem de cadastro. */
     List<User> findAll();

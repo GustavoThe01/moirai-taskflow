@@ -6,6 +6,11 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- Membros do projeto: `GET`, `POST` (pelo e-mail, só o dono) e `DELETE /api/v1/projects/{id}/members/{userId}` (só o dono; o dono não pode ser removido).
+- `UserNotFoundException` (404) para e-mail sem conta, conferido só depois da permissão de dono.
+- Segurança por método (`@EnableMethodSecurity`): a rota de administração usa `@PreAuthorize("hasRole('ADMIN')")`, e o `403` sai em ProblemDetail.
+- Matriz de segurança com usuários e tokens reais: `401` sem token e `403` para quem não é membro, nas 14 rotas de um projeto.
+- 38 testes novos (193 no total).
 - JWT como resource server do Spring Security (OAuth2 Resource Server): access token HMAC-SHA256 de 15 minutos com `sub`, `email` e `roles`.
 - Refresh token de 7 dias e uso único, guardado só como hash SHA-256 (migration `V6`, tabela `refresh_token`).
 - `POST /api/v1/auth/refresh` com rotação; reutilizar um token já trocado revoga todos os tokens do mesmo login.
