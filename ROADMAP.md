@@ -62,7 +62,7 @@
 - [x] Testes de segurança (401 vs 403)
 
 ### Dia 14 — Configuração
-- [ ] Profiles `dev`/`test`/`prod`, segredos via variáveis de ambiente
+- [x] Profiles `dev`/`test`/`prod`, segredos via variáveis de ambiente
 
 ### Dia 15 — Docker
 - [ ] Dockerfile multi-stage, docker-compose

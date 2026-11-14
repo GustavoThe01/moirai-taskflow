@@ -6,6 +6,12 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- Profiles `dev` (padrão), `test` e `prod`, cada um no seu `application-{profile}.yml`.
+- Profile `prod` sem nada sensível em arquivo: banco em `MOIRAI_DB_URL`, chave em `MOIRAI_JWT_SECRET` e administradores em `MOIRAI_ADMIN_EMAILS`; documentação da API fechada; logs em JSON (ECS).
+- `RequiredProdSettings` (`EnvironmentPostProcessor`): em `prod`, lista de uma vez as variáveis obrigatórias que faltam, antes de qualquer bean ser criado.
+- `SecurityProperties` (`@ConfigurationProperties` validado): chave Base64 com 32 bytes ou mais, tempos dos tokens dentro dos limites.
+- `.env.example` com as variáveis do `prod`, sem valores.
+- 7 testes que sobem a aplicação de verdade em cada profile (200 no total).
 - Membros do projeto: `GET`, `POST` (pelo e-mail, só o dono) e `DELETE /api/v1/projects/{id}/members/{userId}` (só o dono; o dono não pode ser removido).
 - `UserNotFoundException` (404) para e-mail sem conta, conferido só depois da permissão de dono.
 - Segurança por método (`@EnableMethodSecurity`): a rota de administração usa `@PreAuthorize("hasRole('ADMIN')")`, e o `403` sai em ProblemDetail.
@@ -29,6 +35,9 @@ e [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ### Removido
 - O cabeçalho provisório `X-User-Id`.
+
+### Corrigido
+- A versão do `pom.xml` tinha ficado em `0.1.0`, mesmo depois da tag `v0.2.0`, e aparecia assim no OpenAPI e nos logs. Agora é `0.3.0-SNAPSHOT`, a próxima versão.
 - Usuários: `POST /api/v1/auth/register` (201, 400 ou 409) e `POST /api/v1/auth/login` (200 ou 401).
 - Entidade de domínio `User`, com e-mail normalizado e único, e as portas `UserRepository` e `PasswordHasher`.
 - Senhas com BCrypt (custo 10) pelo `BCryptPasswordHasher`; o banco guarda só o hash.

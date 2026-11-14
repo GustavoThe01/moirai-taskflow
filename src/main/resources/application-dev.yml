@@ -1,0 +1,8 @@
+# Profile de desenvolvimento (o padrão quando nenhum profile é informado).
+spring:
+  datasource:
+    url: jdbc:sqlite:moirai.db?foreign_keys=on
+
+logging:
+  level:
+    dev.gustavo.moirai: DEBUG

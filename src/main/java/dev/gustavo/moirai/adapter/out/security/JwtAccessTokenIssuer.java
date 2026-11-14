@@ -8,7 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
+import dev.gustavo.moirai.config.SecurityProperties;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -30,13 +30,11 @@ class JwtAccessTokenIssuer implements AccessTokenIssuer {
     private final String issuer;
     private final Duration lifetime;
 
-    JwtAccessTokenIssuer(JwtEncoder encoder, Clock clock,
-                         @Value("${moirai.security.issuer:moirai-taskflow}") String issuer,
-                         @Value("${moirai.security.access-token-lifetime:PT15M}") Duration lifetime) {
+    JwtAccessTokenIssuer(JwtEncoder encoder, Clock clock, SecurityProperties security) {
         this.encoder = encoder;
         this.clock = clock;
-        this.issuer = issuer;
-        this.lifetime = lifetime;
+        this.issuer = security.issuer();
+        this.lifetime = security.accessTokenLifetime();
     }
 
     @Override

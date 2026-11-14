@@ -1,8 +1,13 @@
+# Configuração comum a todos os profiles. O que muda por ambiente fica em application-{profile}.yml:
+#   dev  (padrão): SQLite local, documentação da API aberta, chave JWT temporária se MOIRAI_JWT_SECRET não existir
+#   test         : SQLite em target/, usado pelos testes (src/test/resources/application-test.yml)
+#   prod         : tudo que é segredo vem de variável de ambiente, e a aplicação não sobe sem ele
 spring:
   application:
     name: moirai-taskflow
+  profiles:
+    default: dev
   datasource:
-    url: jdbc:sqlite:moirai.db?foreign_keys=on
     hikari:
       maximum-pool-size: 1 # o SQLite aceita um único escritor por vez
   jpa:
@@ -40,3 +45,14 @@ info:
     name: Moirai Taskflow
     version: "@project.version@"
     description: As Moiras tecem, medem e cortam o fio de cada tarefa.
+
+# Segurança. Os valores podem ser trocados por variável de ambiente (MOIRAI_SECURITY_ACCESS_TOKEN_LIFETIME, etc.).
+# A chave nunca fica aqui: vem de MOIRAI_JWT_SECRET (Base64, pelo menos 32 bytes).
+moirai:
+  security:
+    jwt-secret: ${MOIRAI_JWT_SECRET:}
+    require-jwt-secret: false
+    issuer: moirai-taskflow
+    access-token-lifetime: PT15M
+    refresh-token-lifetime: P7D
+    admin-emails: ${MOIRAI_ADMIN_EMAILS:}
